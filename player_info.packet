@@ -1,0 +1,32 @@
+id = 0x32
+
+Enum(VarInt) action {
+	ADD_PLAYER
+	UPDATE_GAMEMODE
+	UPDATE_LATENCY
+	UPDATE_DISPLAY_NAME
+	REMOVE_PLAYER
+}
+VarInt players_len
+Array(struct) players {
+	UUID uuid
+	union(action) {
+		struct add_player {
+			String(16) name
+			VarInt properties_len
+			Array(struct) properties {
+				String(32767) name
+				String(32767) value
+				bool          signed
+				String(32767) signature (if signed)
+			}
+		}
+		VarInt new_gamemode
+		VarInt new_ping
+		struct display_name {
+			bool has
+			Chat name (if has)
+		}
+		Empty remove_player
+	}
+}
