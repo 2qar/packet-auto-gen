@@ -2,27 +2,30 @@
 #include <stdio.h>
 #include "hash.h"
 
-#include "parser.h"
-
 int main()
 {
-	size_t strings_len = 10;
+	size_t strings_len = 15;
 	char *strings[] = {
-		"Enum",
-		"VarInt",
-		"UUID",
-		"union",
-		"struct",
-		"String",
-		"Array",
-		"bool",
-		"Chat",
-		"Empty",
+		"Byte",
+		"UByte",
+		"Short",
+		"UShort",
+		"Int",
+		"Long",
+		"Float",
+		"Double",
+		"Identifier",
+		"VarLong",
+		"EntityMeta",
+		"Slot",
+		"NBTTag",
+		"Position",
+		"Angle",
 	};
 
 	for (size_t i = 0; i < strings_len; ++i) {
 		uint32_t hash = str_fnv1a(strings[i]);
-		printf("#define PACKET_FT_");
+		printf("#define FT_");
 		char *s = strings[i];
 		while (*s != '\0') {
 			putchar(toupper(*s));
@@ -30,6 +33,4 @@ int main()
 		}
 		printf(" 0x%x\n", hash);
 	}
-
-	printf("FT_BOOL: 0x%x\n", FT_BOOL);
 }

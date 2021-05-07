@@ -17,14 +17,14 @@ Array(struct) players {
 			Array(struct) properties {
 				String(32767) name
 				String(32767) value
-				bool          signed
+				Bool          signed
 				String(32767) signature (if signed)
 			}
 		}
 		VarInt new_gamemode
 		VarInt new_ping
 		struct display_name {
-			bool has
+			Bool has
 			Chat name (if has)
 		}
 		Empty remove_player

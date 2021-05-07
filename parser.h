@@ -1,55 +1,54 @@
 // https://wiki.vg/Protocol#Data_types
-// Values are FNV-1a hashes for parsing
-enum field_type {
-	FT_BOOL = 0xc894953d,
-	FT_BYTE,
-	FT_UBYTE,
-	FT_SHORT,
-	FT_USHORT,
-	FT_INT,
-	FT_LONG,
-	FT_FLOAT,
-	FT_DOUBLE,
-	FT_STRING = 0x604f4858,
-	FT_CHAT = 0x2279d8cb,
-	FT_IDENTIFIER,
-	FT_VARINT = 0x45d97a6f,
-	FT_VARLONG,
-	FT_ENTITY_METADATA,
-	FT_SLOT,
-	FT_NBT_TAG,
-	FT_POSITION,
-	FT_ANGLE,
-	FT_UUID = 0x257b8832,
-	FT_OPTIONAL,
-	FT_ARRAY = 0x16c8fcc6,
-	FT_ENUM = 0xe84dda20,
-	FT_BYTE_ARRAY,
+// Values are (mostly) FNV-1a hashes for parsing
+#define FT_BOOL 0xc894953d
+#define FT_BYTE 0xcb39993f
+#define FT_UBYTE 0xf9c13d6a
+#define FT_SHORT 0x5fdddd75
+#define FT_USHORT 0x182ca22
+#define FT_INT 0xf87415fe
+#define FT_LONG 0x45939473
+#define FT_FLOAT 0x4c816225
+#define FT_DOUBLE 0x8e464c28
+#define FT_STRING 0x604f4858
+#define FT_CHAT 0x2279d8cb
+#define FT_IDENTIFIER 0x27ed05e
+#define FT_VARINT 0x45d97a6f
+#define FT_VARLONG 0xda7b82f8
+#define FT_ENTITY_METADATA 0xd7d24cb7
+#define FT_SLOT 0xf0c19391
+#define FT_NBT_TAG 0x9da906ad
+#define FT_POSITION 0xe27f342a
+#define FT_ANGLE 0x39c493b8
+#define FT_UUID 0x257b8832
+#define FT_OPTIONAL 15
+#define FT_ARRAY 0x16c8fcc6
+#define FT_ENUM 0xe84dda20
+#define FT_BYTE_ARRAY 16
 
-	// not part of the protocol, but i need them for generating C-structs
-	FT_UNION,
-	FT_STRUCT = 0x92c2be20,
-	FT_STRUCT_ARRAY,
-	FT_EMPTY = 0xd1571f8e,
-};
+// These types aren't part of the protocol, but I need them for generating C structs
+// and generating read/write code
+#define FT_UNION 0xdbded6f4
+#define FT_STRUCT 0x92c2be20
+#define FT_STRUCT_ARRAY 17
+#define FT_EMPTY 0xd1571f8e
 
 struct field {
-	enum field_type type;
+	uint32_t type;
 	char *name;
 	union {
 		size_t string_len;
 		struct {
-			enum field_type type;
+			uint32_t type;
 			size_t constants_len;
 			char **constants;
 		} enum_data;
 		struct {
 			char *enum_field_name;
-			struct field_list *fields;
+			struct field *fields;
 		} union_data;
-		struct field_list *fields;
+		struct field *fields;
 		struct {
-			enum field_type type;
+			uint32_t type;
 			size_t array_len;
 		} array;
 		struct {
@@ -57,11 +56,12 @@ struct field {
 			struct field *field;
 		} optional;
 	};
-};
-
-struct field_list {
-	struct field *field;
 	struct field *next;
 };
 
-struct field *parse_enum(struct token **t);
+char *next_nonblank(char *);
+struct field *read_field_type(char **line_start);
+char *read_field_name(char *after_type, struct field *);
+char *read_conditional(char *paren, struct field *);
+char *parse_enum(char *first_constant, struct field *field);
+struct field *parse_fields(char **start);
