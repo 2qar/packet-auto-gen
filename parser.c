@@ -136,6 +136,8 @@ struct field *read_field_type(char **line_start)
 	if (has_args && !(*line_start = read_type_args(name_end, field))) {
 		free(field);
 		return NULL;
+	} else if (!has_args) {
+		*line_start = name_end + 1;
 	}
 	return field;
 }
@@ -156,12 +158,9 @@ char *read_field_name(char *after_type, struct field *field)
 		return NULL;
 	}
 	char *name_end = strpbrk(name_start, " ({\n");
-	if (*name_end != ' ') {
-		fprintf(stderr, "expected a space after name, got a ");
-		if (*name_end == '\n')
-			fprintf(stderr, "newline\n");
-		else
-			fprintf(stderr, "'%c'\n", *name_end);
+	if (*name_end == '(' || *name_end == '{') {
+		fprintf(stderr, "expected a space after name, got a '%c'\n", *name_end);
+		return NULL;
 	}
 
 	size_t name_len = name_end - name_start + 1;
