@@ -7,5 +7,8 @@ $(TARGET): main.o lexer.o parser.o
 
 parser.o: lexer.o
 
+fnv-util:
+	$(CC) $(CFLAGS) -o $@ fnv-util.c
+
 clean:
 	rm $(TARGET) *.o
