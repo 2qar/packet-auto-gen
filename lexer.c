@@ -1,6 +1,21 @@
 #include "lexer.h"
 #include <ctype.h>
 #include <stdlib.h>
+#include <string.h>
+
+bool token_equals(struct token *t, const char *s)
+{
+	if (!t)
+		return false;
+
+	if (t->sep) {
+		return t->sep == s[0];
+	} else if (t->start) {
+		return !strncmp(t->start, s, t->len);
+	} else {
+		return false;
+	}
+}
 
 struct token *lexer_parse(char *buf)
 {

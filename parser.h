@@ -1,3 +1,5 @@
+#include "lexer.h"
+
 // https://wiki.vg/Protocol#Data_types
 // Values are (mostly) FNV-1a hashes for parsing
 #define FT_BOOL 0xc894953d
@@ -60,8 +62,8 @@ struct field {
 };
 
 char *next_nonblank(char *);
-struct field *read_field_type(char **line_start);
-char *read_field_name(char *after_type, struct field *);
-char *read_conditional(char *paren, struct field *);
-char *parse_enum(char *first_constant, struct field *field);
+struct token *read_field_type(struct token *, struct field *);
+struct token *read_field_name(struct token *, struct field *);
+struct token *read_conditional(struct token *, struct field *);
+struct token *parse_enum(struct token *first_constant, struct field *field);
 struct field *parse_fields(char **start);

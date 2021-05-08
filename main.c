@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "lexer.h"
+#include "parser.h"
 
 size_t file_bytes(const char *filename, char **out)
 {
@@ -60,6 +61,25 @@ void put_id(const char *packet_filename, int id)
 	printf(" 0x%x\n", id);
 }
 
+void print_tokens(struct token *t)
+{
+	while (t != NULL) {
+		printf("%zd:%zd ", t->line, t->col);
+		if (t->len > 0) {
+			putchar('\'');
+			for (size_t i = 0; i < t->len; ++i)
+				putchar(t->start[i]);
+			putchar('\'');
+		} else if (!t->start && t->sep != '\n')
+			printf("'%c'", t->sep);
+		if (t->sep != '\n')
+			putchar('\n');
+		else
+			printf("'\\n'\n");
+		t = t->next;
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -84,20 +104,43 @@ int main(int argc, char *argv[])
 	put_id(name, id);
 
 	struct token *tokens = lexer_parse(bytes);
-	struct token *t = tokens;
-	while (t != NULL) {
-		if (t->len > 0) {
-			putchar('\'');
-			for (size_t i = 0; i < t->len; ++i)
-				putchar(t->start[i]);
-			putchar('\'');
-		} else if (!t->start && t->sep != '\n')
-			printf("'%c'", t->sep);
-		if (t->sep != '\n')
-			putchar('\n');
-		else
-			printf("'\\n'\n");
+	print_tokens(tokens);
+
+	struct token *t = tokens->next->next->next;
+	while (t->sep == '\n') {
 		t = t->next;
+	}
+	struct field *head = calloc(1, sizeof(struct field));
+	struct field *f = head;
+	while (t) {
+		t = read_field_type(t, f);
+		if (!t)
+			break;
+		t = read_field_name(t, f);
+		if (!t)
+			break;
+		if (t->sep == '(')
+			t = read_conditional(t, f);
+		if (!t)
+			break;
+
+		// TODO move to a read_field_data() or smth
+		if (token_equals(t, "{")) {
+			switch (f->type) {
+				case FT_ENUM:
+					t = parse_enum(t->next->next, f);
+					break;
+				default:
+					break;
+			}
+		}
+
+		if (token_equals(t, "\n")) {
+			t = t->next;
+			struct field *next_field = calloc(1, sizeof(struct field));
+			f->next = next_field;
+			f = next_field;
+		}
 	}
 
 	free(bytes);
