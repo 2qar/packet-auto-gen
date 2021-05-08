@@ -212,7 +212,7 @@ struct token *parse_enum(struct token *first_constant, struct field *field)
 {
 	size_t constants_len = 0;
 	struct token *c = first_constant;
-	while (c && c->start && token_equals(c->next, "\n")) {
+	while (c && !c->is_sep && token_equals(c->next, "\n")) {
 		c = c->next->next;
 		++constants_len;
 	}
@@ -221,12 +221,14 @@ struct token *parse_enum(struct token *first_constant, struct field *field)
 		return NULL;
 	}
 
+	c = first_constant;
 	char **constants = calloc(constants_len, sizeof(char *));
 	size_t i = 0;
 	while (!token_equals(c, "}")) {
 		size_t constant_len = c->len + 1;
 		char *constant = calloc(constant_len, sizeof(char));
 		snprintf(constant, constant_len, "%s", c->start);
+		printf("constant: %s\n", constant);
 		constants[i] = constant;
 		c = c->next->next;
 		++i;
