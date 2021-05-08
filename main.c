@@ -65,17 +65,14 @@ void print_tokens(struct token *t)
 {
 	while (t != NULL) {
 		printf("%zd:%zd ", t->line, t->col);
-		if (t->len > 0) {
+		if (token_equals(t, "\n")) {
+			printf("'\\n'\n");
+		} else {
 			putchar('\'');
 			for (size_t i = 0; i < t->len; ++i)
 				putchar(t->start[i]);
-			putchar('\'');
-		} else if (!t->start && t->sep != '\n')
-			printf("'%c'", t->sep);
-		if (t->sep != '\n')
-			putchar('\n');
-		else
-			printf("'\\n'\n");
+			printf("'\n");
+		}
 		t = t->next;
 	}
 }
@@ -107,7 +104,7 @@ int main(int argc, char *argv[])
 	print_tokens(tokens);
 
 	struct token *t = tokens->next->next->next;
-	while (t->sep == '\n') {
+	while (token_equals(t, "\n")) {
 		t = t->next;
 	}
 	struct field *head = calloc(1, sizeof(struct field));
@@ -119,7 +116,7 @@ int main(int argc, char *argv[])
 		t = read_field_name(t, f);
 		if (!t)
 			break;
-		if (t->sep == '(')
+		if (token_equals(t, "("))
 			t = read_conditional(t, f);
 		if (!t)
 			break;

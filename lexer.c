@@ -5,16 +5,10 @@
 
 bool token_equals(struct token *t, const char *s)
 {
-	if (!t)
+	if (t == NULL || t->start == NULL)
 		return false;
-
-	if (t->sep) {
-		return t->sep == s[0];
-	} else if (t->start) {
+	else
 		return !strncmp(t->start, s, t->len);
-	} else {
-		return false;
-	}
 }
 
 struct token *lexer_parse(char *buf)
@@ -49,7 +43,11 @@ struct token *lexer_parse(char *buf)
 				} else {
 					t->start = NULL;
 				}
-				t->sep = buf[i];
+				t->start = &buf[i];
+				t->len = 1;
+				t->is_sep = true;
+				t->line = line;
+				t->col = &buf[i] - line_start + 1;
 				t->next = calloc(1, sizeof(struct token));
 				t = t->next;
 				break;

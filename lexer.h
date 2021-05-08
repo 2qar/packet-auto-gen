@@ -7,8 +7,8 @@
 
 struct token {
 	char *start;
-	char sep;
 	size_t len;
+	bool is_sep;
 	size_t line;
 	size_t col;
 	struct token *next;

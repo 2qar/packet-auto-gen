@@ -11,14 +11,8 @@
 
 static void put_token(FILE *f, struct token *t)
 {
-	if (t->sep && t->sep == '\n') {
-		fprintf(f, "\\n");
-	} else if (t->sep) {
-		fputc(t->sep, f);
-	} else {
-		for (size_t i = 0; i < t->len; ++i)
-			fputc(t->start[i], f);
-	}
+	for (size_t i = 0; i < t->len; ++i)
+		fputc(t->start[i], f);
 }
 
 static void perr(const char *s1, struct token *t, const char *s2)
@@ -68,16 +62,16 @@ static bool field_type_has_args(uint32_t ft)
 static struct token *read_type_args(struct token *type, struct field *field)
 {
 	struct token *arg_start = type->next;
-	if (arg_start->sep != '(') {
-		fprintf(stderr, "unexpected token '%c' when parsing '", arg_start->sep);
+	if (!token_equals(arg_start, "(")) {
+		fprintf(stderr, "unexpected token '%c' when parsing '", arg_start->start[0]);
 		put_token(stderr, type);
 		fprintf(stderr, "' args\n");
 		return NULL;
 	}
 	// FIXME: support multiple arguments + types w/ args as arguments
 	struct token *arg = arg_start->next;
-	if (!arg->start) {
-		fprintf(stderr, "expected identifier, got '%c'\n", arg->sep);
+	if (arg->is_sep) {
+		perr("expected identifier, got '", arg, "'\n");
 		return NULL;
 	}
 
@@ -182,10 +176,10 @@ struct token *read_conditional(struct token *paren, struct field *field)
 	cond_start = cond_start->next;
 
 	struct token *cond_end = cond_start;
-	while (cond_end && (cond_end->start || valid_conditional_seperator(cond_end->sep))) {
+	while (cond_end && (cond_end->start || valid_conditional_seperator(cond_end->start[0]))) {
 		cond_end = cond_end->next;
 	}
-	if (cond_end->sep != ')') {
+	if (!token_equals(cond_end, ")")) {
 		perr("unexpected '", cond_end, "' in conditional\n");
 		return NULL;
 	}
