@@ -2,7 +2,7 @@
 
 // https://wiki.vg/Protocol#Data_types
 // Values are (mostly) FNV-1a hashes for parsing
-#define FT_BOOL 0xc894953d
+#define FT_BOOL 0x2f742c5d
 #define FT_BYTE 0xcb39993f
 #define FT_UBYTE 0xf9c13d6a
 #define FT_SHORT 0x5fdddd75

@@ -45,10 +45,40 @@ static bool type_valid_for_array(uint32_t ft)
 	return ft;
 }
 
+// :(
 static bool field_type_is_valid(uint32_t ft)
 {
-	// TODO
-	return ft;
+	switch (ft) {
+		case FT_BOOL:
+		case FT_BYTE:
+		case FT_UBYTE:
+		case FT_SHORT:
+		case FT_USHORT:
+		case FT_INT:
+		case FT_LONG:
+		case FT_FLOAT:
+		case FT_DOUBLE:
+		case FT_STRING:
+		case FT_CHAT:
+		case FT_IDENTIFIER:
+		case FT_VARINT:
+		case FT_VARLONG:
+		case FT_ENTITY_METADATA:
+		case FT_SLOT:
+		case FT_NBT_TAG:
+		case FT_POSITION:
+		case FT_ANGLE:
+		case FT_UUID:
+		case FT_ARRAY:
+		case FT_ENUM:
+		case FT_UNION:
+		case FT_STRUCT:
+		case FT_EMPTY:
+			return true;
+		default:
+			return false;
+	}
+	return false;
 }
 
 static bool field_type_has_args(uint32_t ft)
