@@ -258,7 +258,6 @@ struct token *parse_enum(struct token *first_constant, struct field *field)
 		size_t constant_len = c->len + 1;
 		char *constant = calloc(constant_len, sizeof(char));
 		snprintf(constant, constant_len, "%s", c->start);
-		printf("constant: %s\n", constant);
 		constants[i] = constant;
 		c = c->next->next;
 		++i;
