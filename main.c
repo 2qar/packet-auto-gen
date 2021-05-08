@@ -6,7 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "parser.h"
+#include "lexer.h"
 
 size_t file_bytes(const char *filename, char **out)
 {
@@ -83,63 +83,23 @@ int main(int argc, char *argv[])
 	}
 	put_id(name, id);
 
-	char *next_newline = index(bytes, '\n');
-	if (!next_newline) {
-		fprintf(stderr, "no file, just an ID\n");
-		return 1;
+	struct token *tokens = lexer_parse(bytes);
+	struct token *t = tokens;
+	while (t != NULL) {
+		if (t->len > 0) {
+			putchar('\'');
+			for (size_t i = 0; i < t->len; ++i)
+				putchar(t->start[i]);
+			putchar('\'');
+		} else if (!t->start && t->sep != '\n')
+			printf("'%c'", t->sep);
+		if (t->sep != '\n')
+			putchar('\n');
+		else
+			printf("'\\n'\n");
+		t = t->next;
 	}
 
-	struct field *field = calloc(1, sizeof(struct field));
-	struct field *head = field;
-	char *line_start = next_nonblank(next_newline);
-	while (line_start) {
-		struct field *f = read_field_type(&line_start);
-		if (!f)
-			break;
-		line_start = read_field_name(line_start, f);
-		if (!line_start)
-			break;
-		char *next_symbol = strpbrk(line_start, "({\n");
-		if (!next_symbol || *next_symbol == '\0') {
-			fprintf(stderr, "expected '(', '{', or '\\n', got EOF\n");
-			break;
-		} else if (*next_symbol == '(') {
-			next_symbol = read_conditional(next_symbol, field);
-			if (!next_symbol)
-				break;
-		}
-
-		if (*next_symbol == '{') {
-			next_symbol = next_nonblank(next_symbol + 1);
-			switch (f->type) {
-				case FT_ENUM:
-					next_symbol = parse_enum(next_symbol, f);
-					break;
-				case FT_UNION:
-					f->union_data.fields = parse_fields(&next_symbol);
-					break;
-				case FT_STRUCT:
-				case FT_STRUCT_ARRAY:
-					f->fields = parse_fields(&next_symbol);
-					break;
-			}
-			if (!next_symbol)
-				break;
-		} else if (*next_symbol != '\n') {
-			fprintf(stderr, "unexpected symbol '%c' while moving to next field\n", *next_symbol);
-			break;
-		}
-		line_start = next_nonblank(next_symbol);
-
-		field->next = f;
-		field = f;
-	}
-
-	// at this point, head should point to a complete field tree.
-	// with that, a C struct + read/write code shouldn't be too hard
-	// to generate.
-
-	free(head);
 	free(bytes);
 	return 0;
 }

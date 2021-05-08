@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-g -Wall -Werror -Wextra -pedantic
 TARGET=pc
 
-$(TARGET): main.o parser.o
+$(TARGET): main.o lexer.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
