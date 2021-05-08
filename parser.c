@@ -195,7 +195,7 @@ char *read_conditional(char *paren, struct field *field)
 	memcpy(old_field, field, sizeof(struct field));
 	field->type = FT_OPTIONAL;
 	char *condition = next_nonblank(paren + 3);
-	size_t condition_len = closing_paren - condition;
+	size_t condition_len = closing_paren - condition + 1;
 	field->optional.condition = calloc(condition_len, sizeof(char));
 	snprintf(field->optional.condition, condition_len, "%s", condition);
 	field->optional.field = old_field;
