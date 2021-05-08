@@ -21,6 +21,13 @@ static void put_token(FILE *f, struct token *t)
 	}
 }
 
+static void perr(const char *s1, struct token *t, const char *s2)
+{
+	fprintf(stderr, "%zu:%zu | %s", t->line, t->col, s1);
+	put_token(stderr, t);
+	fprintf(stderr, "%s", s2);
+}
+
 char *next_nonblank(char *s)
 {
 	while (*s != '\0' && (*s == ' ' || *s == '\t' || *s == '\n'))
@@ -79,9 +86,7 @@ static struct token *read_type_args(struct token *type, struct field *field)
 	switch (field->type) {
 		case FT_ENUM:
 			if (!type_valid_for_enum(arg_type)) {
-				fprintf(stderr, "invalid enum type '");
-				put_token(stderr, arg);
-				fprintf(stderr, "'\n");
+				perr("invalid enum type '", arg, "'\n");
 				args_invalid = true;
 			} else {
 				field->enum_data.type = arg_type;
@@ -89,9 +94,7 @@ static struct token *read_type_args(struct token *type, struct field *field)
 			break;
 		case FT_ARRAY:
 			if (!type_valid_for_array(arg_type)) {
-				fprintf(stderr, "invalid array type '");
-				put_token(stderr, arg);
-				fprintf(stderr, "'\n");
+				perr("invalid array type '", arg, "'\n");
 				args_invalid = true;
 			} else {
 				field->array.type = arg_type;
@@ -106,9 +109,7 @@ static struct token *read_type_args(struct token *type, struct field *field)
 			break;
 		case FT_STRING:
 			if (sscanf(arg->start, "%zu", &field->string_len) != 1) {
-				fprintf(stderr, "invalid string length '");
-				put_token(stderr, arg);
-				fprintf(stderr, "'\n");
+				perr("invalid string length '", arg, "'\n");
 				args_invalid = true;
 			}
 			break;
@@ -125,23 +126,17 @@ struct token *read_field_type(struct token *type, struct field *field)
 {
 	uint32_t field_hash = str_fnv1a(type->start, type->len);
 	if (!field_type_is_valid(field_hash)) {
-		fprintf(stderr, "unknown field type '");
-		put_token(stderr, type);
-		fprintf(stderr, "'\n");
+		perr("unknown field type '", type, "'\n");
 		return NULL;
 	}
 
 	bool has_args = field_type_has_args(field_hash);
 	bool has_paren = token_equals(type->next, "(");
 	if (has_args && !has_paren) {
-		fprintf(stderr, "expected args for type '\n");
-		put_token(stderr, type);
-		fprintf(stderr, "'\n");
+		perr("expected args for type '", type, "'\n");
 		return NULL;
 	} else if (!has_args && has_paren) {
-		fprintf(stderr, "unexpected args for type '");
-		put_token(stderr, type);
-		fprintf(stderr, "'\n");
+		perr("unexpected args for type '", type, "'\n");
 		return NULL;
 	}
 
@@ -156,9 +151,7 @@ struct token *read_field_type(struct token *type, struct field *field)
 struct token *read_field_name(struct token *name_tok, struct field *field)
 {
 	if (!name_tok->start) {
-		fprintf(stderr, "expected a name, got a '");
-		put_token(stderr, name_tok);
-		fprintf(stderr, "'\n");
+		perr("expected a name, got a '", name_tok, "'\n");
 		return NULL;
 	}
 
@@ -183,9 +176,7 @@ struct token *read_conditional(struct token *paren, struct field *field)
 {
 	struct token *cond_start = paren->next;
 	if (!token_equals(cond_start, "if")) {
-		fprintf(stderr, "expected 'if' at start of conditional, got '");
-		put_token(stderr, cond_start);
-		fprintf(stderr, "'\n");
+		perr("expected 'if' at start of conditional, got '", cond_start, "'\n");
 		return NULL;
 	}
 	cond_start = cond_start->next;
@@ -195,9 +186,7 @@ struct token *read_conditional(struct token *paren, struct field *field)
 		cond_end = cond_end->next;
 	}
 	if (cond_end->sep != ')') {
-		fprintf(stderr, "unexpected '");
-		put_token(stderr, cond_end);
-		fprintf(stderr, "' in conditional\n");
+		perr("unexpected '", cond_end, "' in conditional\n");
 		return NULL;
 	}
 
@@ -234,9 +223,7 @@ struct token *parse_enum(struct token *first_constant, struct field *field)
 		++constants_len;
 	}
 	if (!c || !token_equals(c, "}")) {
-		fprintf(stderr, "bad constant '");
-		put_token(stderr, c);
-		fprintf(stderr, "'\n");
+		perr("bad constant '", c, "'\n");
 		return NULL;
 	}
 

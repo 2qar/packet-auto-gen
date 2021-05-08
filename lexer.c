@@ -23,6 +23,8 @@ struct token *lexer_parse(char *buf)
 	struct token *tokens = t;
 	size_t token_len = 0;
 	size_t i = 0;
+	size_t line = 1;
+	char *line_start = buf;
 
 	while (buf[i] != '\0') {
 		if (!t->start && isalnum(buf[i])) {
@@ -31,16 +33,18 @@ struct token *lexer_parse(char *buf)
 		}
 
 		switch (buf[i]) {
+			case '\n':
 			case '=':
 			case '(':
 			case ')':
 			case '{':
 			case '}':
 			case ',':
-			case '\n':
 				if (t->start && token_len > 0) {
 					t->len = token_len;
 					t->next = calloc(1, sizeof(struct token));
+					t->line = line;
+					t->col = t->start - line_start + 1;
 					t = t->next;
 				} else {
 					t->start = NULL;
@@ -53,9 +57,16 @@ struct token *lexer_parse(char *buf)
 				if (t->start && token_len > 0) {
 					t->len = token_len;
 					t->next = calloc(1, sizeof(struct token));
+					t->line = line;
+					t->col = t->start - line_start + 1;
 					t = t->next;
 				}
 				break;
+		}
+
+		if (buf[i] == '\n') {
+			line_start = &buf[i+1];
+			++line;
 		}
 
 		if (t->start)
