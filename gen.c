@@ -80,7 +80,6 @@ static char *write_function_name(uint32_t ft)
 {
 	switch (ft) {
 		case FT_ENUM:
-			// FIXME: return encoded enum type
 			return "packet_write_int";
 		case FT_DOUBLE:
 			return "packet_write_double";
@@ -100,7 +99,16 @@ void generate_write_function(char *name, struct field *f)
 	printf("int protocol_write_%s(struct conn *c, struct %s *pack) {\n", name, name);
 	printf("\tstruct packet *p = c->packet;\n");
 	while (f->type) {
-		printf("\t%s(p, pack->%s);\n", write_function_name(f->type), f->name);
+		char *func_name;
+		switch (f->type) {
+			case FT_ENUM:
+				func_name = write_function_name(f->enum_data.type);
+				break;
+			default:
+				func_name = write_function_name(f->type);
+				break;
+		}
+		printf("\t%s(p, pack->%s);\n", func_name, f->name);
 		f = f->next;
 	}
 	printf("\treturn conn_write_packet(p);\n");
