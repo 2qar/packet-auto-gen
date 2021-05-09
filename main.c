@@ -8,6 +8,7 @@
 
 #include "lexer.h"
 #include "parser.h"
+#include "gen.h"
 
 size_t file_bytes(const char *filename, char **out)
 {
@@ -118,8 +119,6 @@ int main(int argc, char *argv[])
 		return 1;
 
 	char *name = packet_name(packet_filename);
-	printf("packet name: %s\n", name);
-
 	unsigned id;
 	if (!sscanf(bytes, "id = 0x%x\n", &id)) {
 		fprintf(stderr, "malformed ID\n");
@@ -128,7 +127,7 @@ int main(int argc, char *argv[])
 	put_id(name, id);
 
 	struct token *tokens = lexer_parse(bytes);
-	print_tokens(tokens);
+	//print_tokens(tokens);
 
 	struct token *t = tokens;
 	while (!token_equals(t, "\n")) {
@@ -145,7 +144,10 @@ int main(int argc, char *argv[])
 			f = f->next;
 	}
 
-	print_fields(head, 0);
+	//print_fields(head, 0);
+
+	generate_struct(name, head);
+	generate_write_function(name, head);
 
 	free(bytes);
 	return 0;

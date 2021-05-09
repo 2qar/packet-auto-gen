@@ -1,3 +1,6 @@
+#ifndef PARSER_H
+#define PARSER_H
+
 #include "lexer.h"
 
 // https://wiki.vg/Protocol#Data_types
@@ -64,3 +67,5 @@ struct token *read_field_name(struct token *, struct field *);
 struct token *read_conditional(struct token *, struct field *);
 struct token *parse_enum(struct token *first_constant, struct field *field);
 struct token *parse_field(struct token *, struct field *);
+
+#endif // PARSER_H
