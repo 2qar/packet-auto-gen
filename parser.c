@@ -248,7 +248,13 @@ struct token *parse_enum(struct token *first_constant, struct field *field)
 		++constants_len;
 	}
 	if (!c || !token_equals(c, "}")) {
-		perr("bad constant '", c, "'\n");
+		perr("bad constant '", c, "'");
+		if (c && c->next) {
+			fprintf(stderr, "; expected '\\n', got '");
+			put_token(stderr, c->next);
+			fputc('\'', stderr);
+		}
+		fputc('\n', stderr);
 		return NULL;
 	}
 
