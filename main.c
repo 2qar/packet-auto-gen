@@ -109,6 +109,43 @@ void print_fields(struct field *f, int indent)
 	}
 }
 
+void free_tokens(struct token *t)
+{
+	while (t != NULL) {
+		struct token *next = t->next;
+		free(t);
+		t = next;
+	}
+}
+
+void free_fields(struct field *f)
+{
+	while (f != NULL) {
+		switch (f->type) {
+			case FT_ENUM:
+				for (size_t i = 0; i < f->enum_data.constants_len; ++i)
+					free(f->enum_data.constants[i]);
+				free(f->enum_data.constants);
+				break;
+			case FT_UNION:
+				free(f->union_data.enum_field_name);
+				free_fields(f->union_data.fields);
+				break;
+			case FT_STRUCT:
+			case FT_STRUCT_ARRAY:
+				free_fields(f->fields);
+				break;
+			default:
+				break;
+		}
+		free(f->name);
+		free(f->condition);
+		struct field *next = f->next;
+		free(f);
+		f = next;
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -148,10 +185,13 @@ int main(int argc, char *argv[])
 	}
 	if (!t)
 		return 1;
+	free_tokens(tokens);
 
 	generate_struct(name, head);
 	generate_write_function(name, head);
 
+	free_fields(head);
 	free(bytes);
+	free(name);
 	return 0;
 }
