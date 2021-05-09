@@ -77,6 +77,33 @@ void print_tokens(struct token *t)
 	}
 }
 
+void put_indent(int indent)
+{
+	for (int i = 0; i < indent; ++i)
+		printf("    ");
+}
+
+void print_fields(struct field *f, int indent)
+{
+	while (f != NULL) {
+		put_indent(indent);
+		printf("type=0x%08x, name=%s\n", f->type, f->name);
+		if (f->type == FT_ENUM) {
+			put_indent(indent + 1);
+			printf("enum constants:\n");
+			for (size_t i = 0; i < f->enum_data.constants_len; ++i) {
+				put_indent(indent + 2);
+				printf("%s\n", f->enum_data.constants[i]);
+			}
+		} else if (f->type == FT_STRUCT_ARRAY || f->type == FT_STRUCT) {
+			print_fields(f->fields, indent + 1);
+		} else if (f->type == FT_UNION) {
+			print_fields(f->union_data.fields, indent + 1);
+		}
+		f = f->next;
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -103,42 +130,22 @@ int main(int argc, char *argv[])
 	struct token *tokens = lexer_parse(bytes);
 	print_tokens(tokens);
 
-	struct token *t = tokens->next->next->next;
+	struct token *t = tokens;
+	while (!token_equals(t, "\n")) {
+		t = t->next;
+	}
 	while (token_equals(t, "\n")) {
 		t = t->next;
 	}
 	struct field *head = calloc(1, sizeof(struct field));
 	struct field *f = head;
-	while (t) {
-		t = read_field_type(t, f);
-		if (!t)
-			break;
-		t = read_field_name(t, f);
-		if (!t)
-			break;
-		if (token_equals(t, "("))
-			t = read_conditional(t, f);
-		if (!t)
-			break;
-
-		// TODO move to a read_field_data() or smth
-		if (token_equals(t, "{")) {
-			switch (f->type) {
-				case FT_ENUM:
-					t = parse_enum(t->next->next, f);
-					break;
-				default:
-					break;
-			}
-		}
-
-		if (token_equals(t, "\n")) {
-			t = t->next;
-			struct field *next_field = calloc(1, sizeof(struct field));
-			f->next = next_field;
-			f = next_field;
-		}
+	while (t && t->line != 0) {
+		t = parse_field(t, f);
+		if (f->next)
+			f = f->next;
 	}
+
+	print_fields(head, 0);
 
 	free(bytes);
 	return 0;

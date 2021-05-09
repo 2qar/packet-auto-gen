@@ -121,6 +121,8 @@ static struct token *read_type_args(struct token *type, struct field *field)
 				perr("invalid array type '", arg, "'\n");
 				args_invalid = true;
 			} else {
+				if (arg_type == FT_STRUCT)
+					field->type = FT_STRUCT_ARRAY;
 				field->array.type = arg_type;
 			}
 			break;
@@ -174,10 +176,13 @@ struct token *read_field_type(struct token *type, struct field *field)
 
 struct token *read_field_name(struct token *name_tok, struct field *field)
 {
-	if (!name_tok->start) {
-		perr("expected a name, got a '", name_tok, "'\n");
+	if (name_tok->is_sep && field->type == FT_UNION)
+		return name_tok;
+	else if (name_tok->is_sep) {
+		perr("expected a name, got '", name_tok, "'\n");
 		return NULL;
 	}
+
 
 	size_t name_len = name_tok->len + 1;
 	char *name = calloc(name_len, sizeof(char));
@@ -206,7 +211,7 @@ struct token *read_conditional(struct token *paren, struct field *field)
 	cond_start = cond_start->next;
 
 	struct token *cond_end = cond_start;
-	while (cond_end && (cond_end->start || valid_conditional_seperator(cond_end->start[0]))) {
+	while (cond_end && (!cond_end->is_sep || valid_conditional_seperator(cond_end->start[0]))) {
 		cond_end = cond_end->next;
 	}
 	if (!token_equals(cond_end, ")")) {
@@ -217,13 +222,9 @@ struct token *read_conditional(struct token *paren, struct field *field)
 	// FIXME: hacky, should be using tokens
 	char *closing_paren = index(cond_start->start, ')');
 
-	struct field *old_field = calloc(1, sizeof(struct field));
-	memcpy(old_field, field, sizeof(struct field));
-	field->type = FT_OPTIONAL;
 	size_t condition_len = closing_paren - cond_start->start + 1;
-	field->optional.condition = calloc(condition_len, sizeof(char));
-	snprintf(field->optional.condition, condition_len, "%s", cond_start->start);
-	field->optional.field = old_field;
+	field->condition = calloc(condition_len, sizeof(char));
+	snprintf(field->condition, condition_len, "%s", cond_start->start);
 
 	return cond_end->next;
 }
@@ -268,9 +269,87 @@ struct token *parse_enum(struct token *first_constant, struct field *field)
 	return c->next;
 }
 
-struct field *parse_fields(char **start)
+/* used for structs, struct arrays, unions */
+static struct token *parse_fields(struct token *first_field, struct field *fields)
 {
-	/* TODO */
-	printf("%s\n", *start);
-	return NULL;
+	struct token *t = first_field;
+	struct field *f = fields;
+	while (t && !token_equals(t, "}")) {
+		t = parse_field(t, f);
+		if (t)
+			f = f->next;
+	}
+	if (t)
+		return t->next;
+	else
+		return NULL;
+}
+
+static bool type_has_body(uint32_t ft)
+{
+	return ft == FT_ENUM ||
+		ft == FT_STRUCT ||
+		ft == FT_UNION ||
+		ft == FT_STRUCT_ARRAY;
+}
+
+struct token *read_field_body(struct token *open_brace, struct field *f)
+{
+	struct token *t;
+	switch (f->type) {
+		case FT_ENUM:
+			t = parse_enum(open_brace->next->next, f);
+			break;
+		case FT_UNION:
+		case FT_STRUCT:
+		case FT_STRUCT_ARRAY:;
+			struct field *fields = calloc(1, sizeof(struct field));
+			t = parse_fields(open_brace->next->next, fields);
+			if (f->type == FT_UNION)
+				f->union_data.fields = fields;
+			else
+				f->fields = fields;
+			break;
+		default:
+			break;
+	}
+	return t;
+}
+
+struct token *parse_field(struct token *t, struct field *f)
+{
+	t = read_field_type(t, f);
+	if (!t)
+		return NULL;
+	t = read_field_name(t, f);
+	if (!t)
+		return NULL;
+	if (token_equals(t, "("))
+		t = read_conditional(t, f);
+	if (!t)
+		return NULL;
+
+	bool has_body = token_equals(t, "{");
+	bool should_have_body = type_has_body(f->type);
+	if (has_body && should_have_body) {
+		t = read_field_body(t, f);
+	} else if (!has_body && should_have_body) {
+		fprintf(stderr, "%zu:%zu | type should have a body, but it doesn't\n",
+				t->line, t->col);
+		return NULL;
+	} else if (has_body && !should_have_body) {
+		fprintf(stderr, "%zu:%zu | type 0x%x shouldn't have a body, but it seems to have one\n",
+				t->line, t->col, f->type);
+		return NULL;
+	}
+
+	if (!t)
+		return NULL;
+
+	if (token_equals(t, "\n")) {
+		t = t->next;
+		struct field *next_field = calloc(1, sizeof(struct field));
+		f->next = next_field;
+	}
+	return t;
 }
