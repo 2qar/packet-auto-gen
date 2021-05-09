@@ -131,7 +131,6 @@ int main(int argc, char *argv[])
 	put_id(name, id);
 
 	struct token *tokens = lexer_parse(bytes);
-	//print_tokens(tokens);
 
 	struct token *t = tokens;
 	while (!token_equals(t, "\n")) {
@@ -147,8 +146,8 @@ int main(int argc, char *argv[])
 		if (f->next)
 			f = f->next;
 	}
-
-	//print_fields(head, 0);
+	if (!t)
+		return 1;
 
 	generate_struct(name, head);
 	generate_write_function(name, head);
