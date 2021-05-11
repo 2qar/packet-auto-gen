@@ -164,7 +164,9 @@ static void write_fields(struct field *f, struct field_path *path, size_t indent
 			case FT_ENUM:
 				func_name = write_function_name(f->enum_data.type);
 				break;
-			case FT_STRUCT:
+			case FT_STRUCT:;
+				struct field_path path_next = { .field_name = f->name, .next = NULL };
+				add_path(path, &path_next);
 				write_fields(f->fields, path, indent);
 				break;
 			case FT_STRUCT_ARRAY:
