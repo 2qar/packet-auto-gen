@@ -89,8 +89,105 @@ static char *write_function_name(uint32_t ft)
 			return "packet_write_varint";
 		case FT_FLOAT:
 			return "packet_write_float";
+		case FT_STRING:
+		case FT_UUID:
+		case FT_IDENTIFIER:
+			return "packet_write_string";
 		default:
 			return NULL;
+	}
+}
+
+struct field_path {
+	char *field_name;
+	struct field_path *next;
+};
+
+static void add_path(struct field_path *f, struct field_path *next)
+{
+	while (f->next != NULL) {
+		f = f->next;
+	}
+	f->next = next;
+}
+
+static void put_path(struct field_path *f)
+{
+	printf("%s->", f->field_name);
+	f = f->next;
+	while (f != NULL) {
+		printf("%s.", f->field_name);
+		f = f->next;
+	}
+}
+
+static void write_fields(struct field *, struct field_path *, size_t indent);
+
+static void write_struct_array(struct field *f, struct field_path *path, size_t indent)
+{
+	put_indent(indent);
+	// FIXME: this won't work with nested loops
+	printf("for (size_t i = 0; i < ");
+	put_path(path);
+	printf("%s_len; ++i) {\n", f->name);
+	struct field_path path_next = { .field_name = f->name, .next = NULL };
+	add_path(path, &path_next);
+	write_fields(f->fields, path, indent + 1);
+	put_indent(indent);
+	printf("}\n");
+}
+
+static void write_string(struct field *f, struct field_path *path, size_t indent)
+{
+	put_indent(indent);
+	printf("size_t %s_len = strlen(", f->name);
+	put_path(path);
+	printf("%s);\n", f->name);
+	put_indent(indent);
+	printf("if (%s_len > %zu) {\n", f->name, f->string_len);
+	put_indent(indent + 1);
+	printf("fprintf(stderr, \"%%s exceeded max len (%zu)\\n\", %s_len);\n", f->string_len, f->name);
+	put_indent(indent + 1);
+	printf("return -1;\n");
+	put_indent(indent);
+	printf("}\n");
+
+	put_indent(indent);
+	printf("packet_write_string(pack, %s_len, %s);\n", f->name, f->name);
+}
+
+static void write_fields(struct field *f, struct field_path *path, size_t indent)
+{
+	while (f->type) {
+		char *func_name = NULL;
+		switch (f->type) {
+			case FT_ENUM:
+				func_name = write_function_name(f->enum_data.type);
+				break;
+			case FT_STRUCT:
+				write_fields(f->fields, path, indent);
+				break;
+			case FT_STRUCT_ARRAY:
+				write_struct_array(f, path, indent);
+				break;
+			case FT_STRING:
+			case FT_UUID:
+			case FT_IDENTIFIER:
+				write_string(f, path, indent);
+				break;
+			case FT_EMPTY:
+				break;
+			default:
+				func_name = write_function_name(f->type);
+				break;
+		}
+		if (func_name != NULL) {
+			put_indent(indent);
+			printf("%s(p, ", func_name);
+			put_path(path);
+			printf("%s);\n", f->name);
+		}
+		f = f->next;
 	}
 }
 
@@ -98,19 +195,8 @@ void generate_write_function(char *name, struct field *f)
 {
 	printf("int protocol_write_%s(struct conn *c, struct %s *pack) {\n", name, name);
 	printf("\tstruct packet *p = c->packet;\n");
-	while (f->type) {
-		char *func_name;
-		switch (f->type) {
-			case FT_ENUM:
-				func_name = write_function_name(f->enum_data.type);
-				break;
-			default:
-				func_name = write_function_name(f->type);
-				break;
-		}
-		printf("\t%s(p, pack->%s);\n", func_name, f->name);
-		f = f->next;
-	}
+	struct field_path path = { .field_name = "pack", .next = NULL };
+	write_fields(f, &path, 1);
 	printf("\treturn conn_write_packet(p);\n");
 	printf("}\n");
 }
