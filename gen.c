@@ -17,6 +17,13 @@ static char *ftype_to_ctype(uint32_t ft)
 			return "int32_t";
 		case FT_FLOAT:
 			return "float";
+		case FT_STRUCT:
+		case FT_STRUCT_ARRAY:
+			return "struct";
+		case FT_STRING:
+		case FT_UUID:
+		case FT_IDENTIFIER:
+			return "char*";
 		default:
 			return NULL;
 	}
@@ -48,20 +55,49 @@ static void put_enum_constant(char *packet_name, char *enum_name, char *constant
 	put_upper(constant);
 }
 
+static void put_enum(char *packet_name, struct field *f, size_t indent)
+{
+	printf(" {\n");
+	for (size_t i = 0; i < f->enum_data.constants_len; ++i) {
+		put_indent(indent + 1);
+		put_enum_constant(packet_name, f->name, f->enum_data.constants[i]);
+		printf(",\n");
+	}
+	put_indent(indent);
+	printf("} ");
+}
+
+static void put_fields(char *packet_name, struct field *, size_t indent);
+
+static void put_struct(char *packet_name, struct field *f, size_t indent)
+{
+	printf(" {\n");
+	put_fields(packet_name, f->fields, indent + 1);
+	put_indent(indent);
+	printf("} ");
+}
+
 static void put_fields(char *name, struct field *f, size_t indent)
 {
 	while (f->type) {
 		put_indent(indent);
 		printf("%s ", ftype_to_ctype(f->type));
-		if (f->type == FT_ENUM) {
-			printf(" {\n");
-			for (size_t i = 0; i < f->enum_data.constants_len; ++i) {
-				put_indent(indent + 1);
-				put_enum_constant(name, f->name, f->enum_data.constants[i]);
-				printf(",\n");
-			}
-			put_indent(indent);
-			printf("} ");
+		switch (f->type) {
+			case FT_ENUM:
+				put_enum(name, f, indent);
+				break;
+			case FT_STRUCT:
+				put_struct(name, f, indent);
+				break;
+			case FT_STRUCT_ARRAY:
+				put_struct(name, f, indent);
+				putchar('*');
+				break;
+			case FT_ARRAY:
+				printf("/* TODO: array */ ");
+				break;
+			default:
+				break;
 		}
 		printf("%s;\n", f->name);
 
