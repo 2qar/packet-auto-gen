@@ -308,6 +308,6 @@ void generate_write_function(char *name, struct field *f)
 	printf("\tstruct packet *p = c->packet;\n");
 	struct field_path path = { .field_name = "pack", .next = NULL };
 	write_fields(name, f, &path, 1);
-	printf("\treturn conn_write_packet(p);\n");
+	printf("\treturn conn_write_packet(c);\n");
 	printf("}\n");
 }
