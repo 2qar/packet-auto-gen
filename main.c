@@ -194,6 +194,7 @@ int main(int argc, char *argv[])
 	if (resolve_union_enums(head))
 		return 1;
 
+	put_includes();
 	generate_struct(name, head);
 	generate_write_function(name, head);
 

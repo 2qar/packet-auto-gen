@@ -4,6 +4,14 @@
 
 #include "parser.h"
 
+void put_includes()
+{
+	puts("#include <stdbool.h>");
+	puts("#include <string.h>");
+	puts("#include <stdint.h>");
+	puts("#include <stdio.h>");
+}
+
 static char *ftype_to_ctype(uint32_t ft)
 {
 	switch (ft) {
