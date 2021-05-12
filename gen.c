@@ -23,7 +23,10 @@ static char *ftype_to_ctype(uint32_t ft)
 		case FT_STRING:
 		case FT_UUID:
 		case FT_IDENTIFIER:
+		case FT_CHAT:
 			return "char*";
+		case FT_UNION:
+			return "union";
 		default:
 			return NULL;
 	}
@@ -64,7 +67,7 @@ static void put_enum(char *packet_name, struct field *f, size_t indent)
 		printf(",\n");
 	}
 	put_indent(indent);
-	printf("} ");
+	printf("}");
 }
 
 static void put_fields(char *packet_name, struct field *, size_t indent);
@@ -74,32 +77,42 @@ static void put_struct(char *packet_name, struct field *f, size_t indent)
 	printf(" {\n");
 	put_fields(packet_name, f->fields, indent + 1);
 	put_indent(indent);
-	printf("} ");
+	printf("}");
 }
 
 static void put_fields(char *name, struct field *f, size_t indent)
 {
 	while (f->type) {
-		put_indent(indent);
-		printf("%s ", ftype_to_ctype(f->type));
-		switch (f->type) {
-			case FT_ENUM:
-				put_enum(name, f, indent);
-				break;
-			case FT_STRUCT:
-				put_struct(name, f, indent);
-				break;
-			case FT_STRUCT_ARRAY:
-				put_struct(name, f, indent);
-				putchar('*');
-				break;
-			case FT_ARRAY:
-				printf("/* TODO: array */ ");
-				break;
-			default:
-				break;
+		if (f->type != FT_EMPTY) {
+			put_indent(indent);
+			printf("%s", ftype_to_ctype(f->type));
+			switch (f->type) {
+				case FT_ENUM:
+					put_enum(name, f, indent);
+					break;
+				case FT_STRUCT:
+					put_struct(name, f, indent);
+					break;
+				case FT_STRUCT_ARRAY:
+					put_struct(name, f, indent);
+					putchar('*');
+					break;
+				case FT_ARRAY:
+					printf("/* TODO: array */ ");
+					break;
+				case FT_UNION:
+					printf(" {\n");
+					put_fields(name, f->union_data.fields, indent + 1);
+					put_indent(indent);
+					printf("}");
+				default:
+					break;
+			}
+
+			if (f->name)
+				printf(" %s", f->name);
+			printf(";\n");
 		}
-		printf("%s;\n", f->name);
 
 		f = f->next;
 	}
