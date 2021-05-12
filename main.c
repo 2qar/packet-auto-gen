@@ -35,12 +35,12 @@ size_t file_bytes(const char *filename, char **out)
 
 char *packet_name(const char *packet_filename)
 {
-	char *slash = rindex(packet_filename, '/');
+	char *slash = strrchr(packet_filename, '/');
 	if (slash)
 		packet_filename = slash + 1;
 
 	char *name = NULL;
-	char *dot = index(packet_filename, '.');
+	char *dot = strchr(packet_filename, '.');
 	size_t name_len;
 	if (dot) {
 		name_len = dot - packet_filename + 1;

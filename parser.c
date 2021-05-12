@@ -222,7 +222,7 @@ struct token *read_conditional(struct token *paren, struct field *field)
 	}
 
 	// FIXME: hacky, should be using tokens
-	char *closing_paren = index(cond_start->start, ')');
+	char *closing_paren = strchr(cond_start->start, ')');
 
 	size_t condition_len = closing_paren - cond_start->start + 1;
 	field->condition = calloc(condition_len, sizeof(char));
