@@ -49,7 +49,7 @@ struct field {
 			char **constants;
 		} enum_data;
 		struct {
-			char *enum_field_name;
+			struct field *enum_field;
 			struct field *fields;
 		} union_data;
 		struct field *fields;
@@ -67,5 +67,7 @@ struct token *read_field_name(struct token *, struct field *);
 struct token *read_conditional(struct token *, struct field *);
 struct token *parse_enum(struct token *first_constant, struct field *field);
 struct token *parse_field(struct token *, struct field *);
+
+bool resolve_union_enums(struct field *root);
 
 #endif // PARSER_H

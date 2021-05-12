@@ -131,7 +131,9 @@ static struct token *read_type_args(struct token *type, struct field *field)
 			size_t name_len = arg->len + 1;
 			char *name = calloc(name_len, sizeof(char));
 			snprintf(name, name_len, "%s", arg->start);
-			field->union_data.enum_field_name = name;
+			struct field *enum_field = calloc(1, sizeof(struct field));
+			enum_field->name = name;
+			field->union_data.enum_field = enum_field;
 			break;
 		case FT_STRING:
 			if (sscanf(arg->start, "%zu", &field->string_len) != 1) {
@@ -358,4 +360,56 @@ struct token *parse_field(struct token *t, struct field *f)
 		f->next = next_field;
 	}
 	return t;
+}
+
+// FIXME: all the stuff below seems like it belongs in a seperate file
+
+static struct field *find_field(struct field *f, uint32_t f_type, char *f_name)
+{
+	struct field *res = NULL;
+	while (!res && f->type != 0) {
+		if (f->type == f_type && !strcmp(f->name, f_name))
+			res = f;
+		else if (f->type == FT_STRUCT || f->type == FT_STRUCT_ARRAY)
+			res = find_field(f->fields, f_type, f_name);
+		else if (f->type == FT_UNION)
+			res = find_field(f->union_data.fields, f_type, f_name);
+
+		f = f->next;
+	}
+	return res;
+}
+
+static bool resolve_union_enums_iter(struct field *root, struct field *f)
+{
+	bool err = false;
+	while (!err && f->type != 0) {
+		switch (f->type) {
+			case FT_STRUCT:
+			case FT_STRUCT_ARRAY:
+				err = resolve_union_enums_iter(root, f->fields);
+				break;
+			case FT_UNION:;
+				struct field *partial = f->union_data.enum_field;
+				char *name = partial->name;
+				free(partial);
+				struct field *enum_field = find_field(root, FT_ENUM, name);
+				if (enum_field == NULL) {
+					fprintf(stderr, "union '%s' depends on non-existent enum '%s'\n", f->name, name);
+					err = true;
+				}
+				free(name);
+				f->union_data.enum_field = enum_field;
+				break;
+			default:
+				break;
+		}
+		f = f->next;
+	}
+	return err;
+}
+
+bool resolve_union_enums(struct field *root)
+{
+	return resolve_union_enums_iter(root, root);
 }

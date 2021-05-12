@@ -127,8 +127,12 @@ void free_fields(struct field *f)
 					free(f->enum_data.constants[i]);
 				free(f->enum_data.constants);
 				break;
-			case FT_UNION:
-				free(f->union_data.enum_field_name);
+			case FT_UNION:;
+				struct field *enum_field = f->union_data.enum_field;
+				if (enum_field && enum_field->type == 0) {
+					free(enum_field->name);
+					free(enum_field);
+				}
 				free_fields(f->union_data.fields);
 				break;
 			case FT_STRUCT:
@@ -186,6 +190,9 @@ int main(int argc, char *argv[])
 	if (!t)
 		return 1;
 	free_tokens(tokens);
+
+	if (resolve_union_enums(head))
+		return 1;
 
 	generate_struct(name, head);
 	generate_write_function(name, head);
