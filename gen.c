@@ -242,7 +242,9 @@ static void write_string(struct field *f, struct field_path *path, size_t indent
 	printf("}\n");
 
 	put_indent(indent);
-	printf("packet_write_string(p, %s_len, %s);\n", f->name, f->name);
+	printf("packet_write_string(p, %s_len, ", f->name);
+	put_path(path);
+	printf("%s);\n", f->name);
 }
 
 static void write_field(char *packet_name, struct field *f, struct field_path *path, size_t indent)
