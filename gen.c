@@ -100,6 +100,7 @@ static char *write_function_name(uint32_t ft)
 
 struct field_path {
 	char *field_name;
+	bool is_array;
 	struct field_path *next;
 };
 
@@ -108,7 +109,10 @@ static void put_path(struct field_path *f)
 	printf("%s->", f->field_name);
 	f = f->next;
 	while (f != NULL) {
-		printf("%s.", f->field_name);
+		printf("%s", f->field_name);
+		if (f->is_array)
+			printf("[i_%s]", f->field_name);
+		putchar('.');
 		f = f->next;
 	}
 }
@@ -127,11 +131,10 @@ static void write_fields(char *packet_name, struct field *, struct field_path *,
 static void write_struct_array(char *packet_name, struct field *f, struct field_path *path, size_t indent)
 {
 	put_indent(indent);
-	// FIXME: this won't work with nested loops
-	printf("for (size_t i = 0; i < ");
+	printf("for (size_t i_%s = 0; i < ", f->name);
 	put_path(path);
-	printf("%s_len; ++i) {\n", f->name);
-	struct field_path path_next = { .field_name = f->name, .next = NULL };
+	printf("%s_len; ++i_%s) {\n", f->name, f->name);
+	struct field_path path_next = { .field_name = f->name, .is_array = true, .next = NULL };
 	struct field_path *path_end = end_of_path(path);
 	path_end->next = &path_next;
 	write_fields(packet_name, f->fields, path, indent + 1);
@@ -201,7 +204,7 @@ static void write_field(char *packet_name, struct field *f, struct field_path *p
 			func_name = write_function_name(f->enum_data.type);
 			break;
 		case FT_STRUCT:;
-			struct field_path path_next = { .field_name = f->name, .next = NULL };
+			struct field_path path_next = { .field_name = f->name, .is_array = false, .next = NULL };
 			struct field_path *path_end = end_of_path(path);
 			path_end->next = &path_next;
 			write_fields(packet_name, f->fields, path, indent);
