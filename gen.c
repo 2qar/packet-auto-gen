@@ -180,7 +180,7 @@ static void write_fields(char *packet_name, struct field *, struct field_path *,
 static void write_struct_array(char *packet_name, struct field *f, struct field_path *path, size_t indent)
 {
 	put_indent(indent);
-	printf("for (size_t i_%s = 0; i < ", f->name);
+	printf("for (size_t i_%s = 0; i_%s < ", f->name, f->name);
 	put_path(path);
 	printf("%s_len; ++i_%s) {\n", f->name, f->name);
 	struct field_path path_next = { .field_name = f->name, .is_array = true, .next = NULL };
