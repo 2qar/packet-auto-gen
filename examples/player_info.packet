@@ -17,8 +17,8 @@ Array(struct) players {
 			Array(struct) properties {
 				String(32767) name
 				String(32767) value
-				Bool          signed
-				String(32767) signature (if signed)
+				Bool          is_signed
+				String(32767) signature (if is_signed)
 			}
 		}
 		VarInt new_gamemode
