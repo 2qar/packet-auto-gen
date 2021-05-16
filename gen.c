@@ -290,7 +290,7 @@ static void put_condition(struct condition *condition)
 {
 	put_operand(condition, 0);
 	if (condition->op) {
-		printf(" %c ", condition->op);
+		printf(" %s ", condition->op);
 		put_operand(condition, 1);
 	}
 

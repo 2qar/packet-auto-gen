@@ -121,6 +121,9 @@ void free_tokens(struct token *t)
 void free_fields(struct field *f)
 {
 	while (f != NULL) {
+		if (f->condition)
+			free(f->condition->op);
+
 		switch (f->type) {
 			case FT_ENUM:
 				for (size_t i = 0; i < f->enum_data.constants_len; ++i)

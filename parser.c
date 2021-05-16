@@ -215,6 +215,43 @@ static bool is_num_literal(size_t len, const char *s)
 	return i == len;
 }
 
+static bool is_valid_operator(char c1, char c2)
+{
+	if (c1 == '<' || c1 == '>')
+		return c2 == 0 || c2 == '=';
+	else if (c1 == '&')
+		return c2 == 0 || c2 == '&';
+	else if (c1 == '|')
+		return c2 == 0 || c2 == '|';
+	else if (c1 == '=' || c1 == '!')
+		return c2 == '=';
+	else
+		return false;
+}
+
+static struct token *read_operator(struct token *start, char **operator)
+{
+	struct token *end = start->next;
+	char other_sep = 0;
+	if (end->is_sep) {
+		other_sep = *end->start;
+		end = end->next;
+	}
+
+	if (!is_valid_operator(*start->start, other_sep)) {
+		fprintf(stderr, "%zu:%zu | invalid operator '%c", start->line, start->col, *start->start);
+		if (other_sep != 0)
+			fputc(other_sep, stderr);
+		fprintf(stderr, "'\n");
+		return NULL;
+	}
+
+	char *op = calloc(3, sizeof(char));
+	snprintf(op, 3, "%c%c", *start->start, other_sep);
+	*operator = op;
+	return end;
+}
+
 struct token *read_conditional(struct token *paren, struct field *field)
 {
 	struct token *cond_start = paren->next;
@@ -246,19 +283,23 @@ struct token *read_conditional(struct token *paren, struct field *field)
 	condition->operands[0].string_len = cond_start->len;
 	condition->operands[0].string = cond_start->start;
 
-	// FIXME: breaks on stuff like '==' because '==' is parsed as two tokens,
-	//        not one
 	cond_start = cond_start->next;
 	if (cond_start != cond_end) {
-		condition->op = cond_start->start[0];
-		cond_start = cond_start->next;
-		if (is_num_literal(cond_start->len, cond_start->start))
+		struct token *next_operand = read_operator(cond_start, &condition->op);
+		if (next_operand == NULL) {
+			return NULL;
+		} else if (next_operand == cond_end) {
+			perr("expected operand, got '", next_operand, "'\n");
+			return NULL;
+		}
+
+		if (is_num_literal(next_operand->len, next_operand->start))
 			condition->operands[1].is_field = false;
 		else
 			condition->operands[1].is_field = true;
 
-		condition->operands[1].string_len = cond_start->len;
-		condition->operands[1].string = cond_start->start;
+		condition->operands[1].string_len = next_operand->len;
+		condition->operands[1].string = next_operand->start;
 	}
 
 	field->condition = condition;

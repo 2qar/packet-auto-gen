@@ -51,7 +51,7 @@ struct condition {
 			};
 		};
 	} operands[2];
-	char op;
+	char *op;
 };
 
 struct field {
