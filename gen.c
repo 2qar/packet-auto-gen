@@ -261,12 +261,20 @@ static void put_string(size_t len, const char *s)
 		putchar(s[i]);
 }
 
+static void put_operand(struct condition *condition, size_t i)
+{
+	if (condition->operands[i].is_field)
+		printf("%s", condition->operands[i].field->name);
+	else
+		put_string(condition->operands[i].string_len, condition->operands[i].string);
+}
+
 static void put_condition(struct condition *condition)
 {
-	put_string(condition->operands[0].string_len, condition->operands[0].string);
+	put_operand(condition, 0);
 	if (condition->op) {
 		printf(" %c ", condition->op);
-		put_string(condition->operands[1].string_len, condition->operands[1].string);
+		put_operand(condition, 1);
 	}
 
 }

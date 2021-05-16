@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
 	free_tokens(tokens);
 
 	create_parent_links(head);
-	if (resolve_union_enums(head))
+	if (resolve_field_name_refs(head))
 		return 1;
 
 	put_includes();

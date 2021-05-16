@@ -36,6 +36,8 @@
 #define FT_STRUCT 0x92c2be20
 #define FT_STRUCT_ARRAY 17
 #define FT_EMPTY 0xd1571f8e
+// used internally in searching
+#define FT_ANY 18
 
 // only supports one binary operation
 struct condition {
@@ -85,6 +87,6 @@ struct token *parse_enum(struct token *first_constant, struct field *field);
 struct token *parse_field(struct token *, struct field *);
 
 void create_parent_links(struct field *root);
-bool resolve_union_enums(struct field *root);
+bool resolve_field_name_refs(struct field *root);
 
 #endif // PARSER_H

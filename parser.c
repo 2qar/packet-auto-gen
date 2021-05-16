@@ -421,30 +421,62 @@ void create_parent_links(struct field *root)
 
 // FIXME: all the stuff below seems like it belongs in a seperate file
 
-static struct field *find_field(struct field *f, uint32_t f_type, char *f_name)
+static struct field *find_field_with_len(struct field *f, uint32_t f_type, size_t f_name_len, char *f_name)
 {
 	struct field *res = NULL;
 	while (!res && f->type != 0) {
-		if (f->type == f_type && !strcmp(f->name, f_name))
+		if (!f->name && f->type == f_type)
+			res = f;
+		if (f->name && (f->type == f_type || f_type == FT_ANY) && !strncmp(f->name, f_name, f_name_len))
 			res = f;
 		else if (f->type == FT_STRUCT || f->type == FT_STRUCT_ARRAY)
-			res = find_field(f->fields, f_type, f_name);
+			res = find_field_with_len(f->fields, f_type, f_name_len, f_name);
 		else if (f->type == FT_UNION)
-			res = find_field(f->union_data.fields, f_type, f_name);
+			res = find_field_with_len(f->union_data.fields, f_type, f_name_len, f_name);
 
 		f = f->next;
 	}
 	return res;
 }
 
-static bool resolve_union_enums_iter(struct field *root, struct field *f)
+static struct field *find_field(struct field *f, uint32_t f_type, char *f_name)
+{
+	return find_field_with_len(f, f_type, strlen(f_name), f_name);
+}
+
+static bool resolve_condition_name_refs(struct field *root, struct condition *condition)
+{
+	size_t i = 0;
+	bool err = false;
+	while (!err && i < 2) {
+		if (condition->operands[i].is_field) {
+			struct field *f = find_field_with_len(root, FT_ANY,
+					condition->operands[i].string_len,
+					condition->operands[i].string);
+			if (f == NULL) {
+				fprintf(stderr, "couldn't put up with this shit anymore\n");
+				return true;
+			} else {
+				condition->operands[i].field = f;
+			}
+		}
+		++i;
+	}
+	return err;
+}
+
+static bool resolve_field_name_refs_iter(struct field *root, struct field *f)
 {
 	bool err = false;
 	while (!err && f->type != 0) {
+		if (f->condition != NULL) {
+			err = resolve_condition_name_refs(root, f->condition);
+		}
+
 		switch (f->type) {
 			case FT_STRUCT:
 			case FT_STRUCT_ARRAY:
-				err = resolve_union_enums_iter(root, f->fields);
+				err = resolve_field_name_refs_iter(root, f->fields);
 				break;
 			case FT_UNION:;
 				struct field *partial = f->union_data.enum_field;
@@ -457,6 +489,10 @@ static bool resolve_union_enums_iter(struct field *root, struct field *f)
 				}
 				free(name);
 				f->union_data.enum_field = enum_field;
+
+				if (!err) {
+					err = resolve_field_name_refs_iter(root, f->union_data.fields);
+				}
 				break;
 			default:
 				break;
@@ -466,7 +502,7 @@ static bool resolve_union_enums_iter(struct field *root, struct field *f)
 	return err;
 }
 
-bool resolve_union_enums(struct field *root)
+bool resolve_field_name_refs(struct field *root)
 {
-	return resolve_union_enums_iter(root, root);
+	return resolve_field_name_refs_iter(root, root);
 }
