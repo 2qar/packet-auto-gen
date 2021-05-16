@@ -203,6 +203,18 @@ static bool valid_conditional_seperator(char c)
 		c == '|';
 }
 
+static bool is_num_literal(size_t len, const char *s)
+{
+	size_t i = 0;
+	if (!strncmp(s, "0x", 2))
+		i += 2;
+
+	while (i < len && isdigit(s[i]))
+		++i;
+
+	return i == len;
+}
+
 struct token *read_conditional(struct token *paren, struct field *field)
 {
 	struct token *cond_start = paren->next;
@@ -219,14 +231,37 @@ struct token *read_conditional(struct token *paren, struct field *field)
 	if (!token_equals(cond_end, ")")) {
 		perr("unexpected '", cond_end, "' in conditional\n");
 		return NULL;
+	} else if (cond_start->is_sep) {
+		perr("expected first operand, got '", cond_start, "'\n");
+		return NULL;
 	}
 
-	// FIXME: hacky, should be using tokens
-	char *closing_paren = strchr(cond_start->start, ')');
+	// FIXME: only one or two operands, no complicated logic.
+	//        maybe that's for the best?
+	struct condition *condition = calloc(1, sizeof(struct condition));
+	if (is_num_literal(cond_start->len, cond_start->start))
+		condition->operands[0].is_field = false;
+	else
+		condition->operands[0].is_field = true;
+	condition->operands[0].string_len = cond_start->len;
+	condition->operands[0].string = cond_start->start;
 
-	size_t condition_len = closing_paren - cond_start->start + 1;
-	field->condition = calloc(condition_len, sizeof(char));
-	snprintf(field->condition, condition_len, "%s", cond_start->start);
+	// FIXME: breaks on stuff like '==' because '==' is parsed as two tokens,
+	//        not one
+	cond_start = cond_start->next;
+	if (cond_start != cond_end) {
+		condition->op = cond_start->start[0];
+		cond_start = cond_start->next;
+		if (is_num_literal(cond_start->len, cond_start->start))
+			condition->operands[1].is_field = false;
+		else
+			condition->operands[1].is_field = true;
+
+		condition->operands[1].string_len = cond_start->len;
+		condition->operands[1].string = cond_start->start;
+	}
+
+	field->condition = condition;
 
 	return cond_end->next;
 }

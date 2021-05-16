@@ -255,9 +255,32 @@ static void write_string(struct field *f, struct field_path *path, size_t indent
 	printf("%s);\n", f->name);
 }
 
+static void put_string(size_t len, const char *s)
+{
+	for (size_t i = 0; i < len; ++i)
+		putchar(s[i]);
+}
+
+static void put_condition(struct condition *condition)
+{
+	put_string(condition->operands[0].string_len, condition->operands[0].string);
+	if (condition->op) {
+		printf(" %c ", condition->op);
+		put_string(condition->operands[1].string_len, condition->operands[1].string);
+	}
+
+}
+
 static void write_field(char *packet_name, struct field *f, struct field_path *path, size_t indent)
 {
 	char *func_name = NULL;
+	if (f->condition != NULL) {
+		put_indent(indent);
+		printf("if (");
+		put_condition(f->condition);
+		printf(") {\n");
+		++indent;
+	}
 	switch (f->type) {
 		case FT_ENUM:
 			func_name = write_function_name(f->enum_data.type);
@@ -292,6 +315,11 @@ static void write_field(char *packet_name, struct field *f, struct field_path *p
 		printf("%s(p, ", func_name);
 		put_path(path);
 		printf("%s);\n", f->name);
+	}
+	if (f->condition != NULL) {
+		--indent;
+		put_indent(indent);
+		printf("}\n");
 	}
 }
 

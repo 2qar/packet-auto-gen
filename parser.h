@@ -37,10 +37,25 @@
 #define FT_STRUCT_ARRAY 17
 #define FT_EMPTY 0xd1571f8e
 
+// only supports one binary operation
+struct condition {
+	struct  {
+		bool is_field;
+		union {
+			struct field *field;
+			struct {
+				size_t string_len;
+				char *string;
+			};
+		};
+	} operands[2];
+	char op;
+};
+
 struct field {
 	uint32_t type;
 	char *name;
-	char *condition;
+	struct condition *condition;
 	union {
 		size_t string_len;
 		struct {
