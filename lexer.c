@@ -11,6 +11,15 @@ bool token_equals(struct token *t, const char *s)
 		return !strncmp(t->start, s, t->len);
 }
 
+static struct token *token_append(struct token *t, size_t token_len, size_t line, const char *line_start)
+{
+	t->len = token_len;
+	t->line = line;
+	t->col = t->start - line_start + 1;
+	t->next = calloc(1, sizeof(struct token));
+	return t->next;
+}
+
 struct token *lexer_parse(char *buf)
 {
 	struct token *t = calloc(1, sizeof(struct token));
@@ -34,15 +43,11 @@ struct token *lexer_parse(char *buf)
 			case '{':
 			case '}':
 			case ',':
-				if (t->start && token_len > 0) {
-					t->len = token_len;
-					t->next = calloc(1, sizeof(struct token));
-					t->line = line;
-					t->col = t->start - line_start + 1;
-					t = t->next;
-				} else {
+				if (t->start && token_len > 0)
+					t = token_append(t, token_len, line, line_start);
+				else
 					t->start = NULL;
-				}
+
 				t->start = &buf[i];
 				t->len = 1;
 				t->is_sep = true;
@@ -52,13 +57,8 @@ struct token *lexer_parse(char *buf)
 				t = t->next;
 				break;
 			case ' ':
-				if (t->start && token_len > 0) {
-					t->len = token_len;
-					t->next = calloc(1, sizeof(struct token));
-					t->line = line;
-					t->col = t->start - line_start + 1;
-					t = t->next;
-				}
+				if (t->start && token_len > 0)
+					t = token_append(t, token_len, line, line_start);
 				break;
 		}
 
