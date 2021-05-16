@@ -261,12 +261,12 @@ static void put_string(size_t len, const char *s)
 		putchar(s[i]);
 }
 
-static void put_field_path(char *packet_name, struct field *f)
+static void put_field_path(struct field *f)
 {
 	if (f == NULL) {
-		printf("%s->", packet_name);
+		printf("pack->");
 	} else {
-		put_field_path(packet_name, f->parent);
+		put_field_path(f->parent);
 
 		if (f->name != NULL) {
 			printf("%s", f->name);
@@ -277,21 +277,21 @@ static void put_field_path(char *packet_name, struct field *f)
 	}
 }
 
-static void put_operand(char *packet_name, struct condition *condition, size_t i)
+static void put_operand(struct condition *condition, size_t i)
 {
 	if (condition->operands[i].is_field) {
-		put_field_path(packet_name, condition->operands[i].field->parent);
+		put_field_path(condition->operands[i].field->parent);
 		printf("%s", condition->operands[i].field->name);
 	} else
 		put_string(condition->operands[i].string_len, condition->operands[i].string);
 }
 
-static void put_condition(char *packet_name, struct condition *condition)
+static void put_condition(struct condition *condition)
 {
-	put_operand(packet_name, condition, 0);
+	put_operand(condition, 0);
 	if (condition->op) {
 		printf(" %c ", condition->op);
-		put_operand(packet_name, condition, 1);
+		put_operand(condition, 1);
 	}
 
 }
@@ -302,7 +302,7 @@ static void write_field(char *packet_name, struct field *f, struct field_path *p
 	if (f->condition != NULL) {
 		put_indent(indent);
 		printf("if (");
-		put_condition(packet_name, f->condition);
+		put_condition(f->condition);
 		printf(") {\n");
 		++indent;
 	}
