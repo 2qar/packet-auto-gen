@@ -278,6 +278,7 @@ static void write_field(char *packet_name, struct field *f, struct field_path *p
 		case FT_STRING:
 		case FT_UUID:
 		case FT_IDENTIFIER:
+		case FT_CHAT:
 			write_string(f, path, indent);
 			break;
 		case FT_EMPTY:
