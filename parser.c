@@ -397,6 +397,28 @@ struct token *parse_field(struct token *t, struct field *f)
 	return t;
 }
 
+static void create_parent_links_iter(struct field *parent, struct field *f)
+{
+	while (f->type != 0) {
+		f->parent = parent;
+		switch (f->type) {
+			case FT_STRUCT:
+			case FT_STRUCT_ARRAY:
+				create_parent_links_iter(f, f->fields);
+				break;
+			case FT_UNION:
+				create_parent_links_iter(f, f->union_data.fields);
+				break;
+		}
+		f = f->next;
+	}
+}
+
+void create_parent_links(struct field *root)
+{
+	create_parent_links_iter(NULL, root);
+}
+
 // FIXME: all the stuff below seems like it belongs in a seperate file
 
 static struct field *find_field(struct field *f, uint32_t f_type, char *f_name)

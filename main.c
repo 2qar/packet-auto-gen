@@ -191,6 +191,7 @@ int main(int argc, char *argv[])
 		return 1;
 	free_tokens(tokens);
 
+	create_parent_links(head);
 	if (resolve_union_enums(head))
 		return 1;
 

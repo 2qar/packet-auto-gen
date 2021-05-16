@@ -73,6 +73,7 @@ struct field {
 			size_t array_len;
 		} array;
 	};
+	struct field *parent;
 	struct field *next;
 };
 
@@ -83,6 +84,7 @@ struct token *read_conditional(struct token *, struct field *);
 struct token *parse_enum(struct token *first_constant, struct field *field);
 struct token *parse_field(struct token *, struct field *);
 
+void create_parent_links(struct field *root);
 bool resolve_union_enums(struct field *root);
 
 #endif // PARSER_H
