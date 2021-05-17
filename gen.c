@@ -155,56 +155,48 @@ static char *write_function_name(uint32_t ft)
 	}
 }
 
-struct field_path {
-	char *field_name;
-	bool is_array;
-	struct field_path *next;
-};
-
-static void put_path(struct field_path *f)
+static void put_path_iter(struct field *f)
 {
-	printf("%s->", f->field_name);
-	f = f->next;
-	while (f != NULL) {
-		printf("%s", f->field_name);
-		if (f->is_array)
-			printf("[i_%s]", f->field_name);
-		putchar('.');
-		f = f->next;
+	if (f == NULL) {
+		printf("pack->");
+	} else {
+		put_path_iter(f->parent);
+
+		if (f->name != NULL) {
+			printf("%s", f->name);
+			if (f->type == FT_STRUCT_ARRAY)
+				printf("[i_%s]", f->name);
+			putchar('.');
+		}
 	}
 }
 
-static struct field_path *end_of_path(struct field_path *f)
+static void put_path(struct field *f)
 {
-	while (f->next != NULL) {
-		f = f->next;
-	}
-	return f;
+	put_path_iter(f->parent);
 }
 
-static void write_field(char *packet_name, struct field *, struct field_path *, size_t indent);
-static void write_fields(char *packet_name, struct field *, struct field_path *, size_t indent);
+static void write_field(char *packet_name, struct field *, size_t indent);
+static void write_fields(char *packet_name, struct field *, size_t indent);
 
-static void write_struct_array(char *packet_name, struct field *f, struct field_path *path, size_t indent)
+static void write_struct_array(char *packet_name, struct field *f, size_t indent)
 {
 	put_indent(indent);
 	printf("for (size_t i_%s = 0; i_%s < ", f->name, f->name);
-	put_path(path);
+	put_path(f);
 	printf("%s_len; ++i_%s) {\n", f->name, f->name);
-	struct field_path path_next = { .field_name = f->name, .is_array = true, .next = NULL };
-	struct field_path *path_end = end_of_path(path);
-	path_end->next = &path_next;
-	write_fields(packet_name, f->fields, path, indent + 1);
-	path_end->next = NULL;
+	write_fields(packet_name, f->fields, indent + 1);
 	put_indent(indent);
 	printf("}\n");
 }
 
-static void write_union(char *packet_name, struct field *union_field, struct field_path *path, size_t indent)
+static void write_union(char *packet_name, struct field *union_field, size_t indent)
 {
 	put_indent(indent);
 	struct field *enum_field = union_field->union_data.enum_field;
-	printf("switch (%s->%s) {\n", path->field_name, enum_field->name);
+	printf("switch (");
+	put_path(enum_field);
+	printf("%s) {\n", enum_field->name);
 	struct field *f = union_field->union_data.fields;
 	size_t i = 0;
 	// FIXME: check during parsing or some other stage that
@@ -220,7 +212,7 @@ static void write_union(char *packet_name, struct field *union_field, struct fie
 		//        be passed around everywhere just for this function
 		put_enum_constant(packet_name, enum_field->name, enum_field->enum_data.constants[i]);
 		printf(":;\n");
-		write_field(packet_name, f, path, indent + 2);
+		write_field(packet_name, f, indent + 2);
 		put_indent(indent + 2);
 		printf("break;\n");
 		f = f->next;
@@ -234,11 +226,11 @@ static void write_union(char *packet_name, struct field *union_field, struct fie
 	printf("}\n");
 }
 
-static void write_string(struct field *f, struct field_path *path, size_t indent)
+static void write_string(struct field *f, size_t indent)
 {
 	put_indent(indent);
 	printf("size_t %s_len = strlen(", f->name);
-	put_path(path);
+	put_path(f);
 	printf("%s);\n", f->name);
 	put_indent(indent);
 	printf("if (%s_len > %zu) {\n", f->name, f->string_len);
@@ -251,7 +243,7 @@ static void write_string(struct field *f, struct field_path *path, size_t indent
 
 	put_indent(indent);
 	printf("packet_write_string(p, %s_len, ", f->name);
-	put_path(path);
+	put_path(f);
 	printf("%s);\n", f->name);
 }
 
@@ -261,26 +253,10 @@ static void put_string(size_t len, const char *s)
 		putchar(s[i]);
 }
 
-static void put_field_path(struct field *f)
-{
-	if (f == NULL) {
-		printf("pack->");
-	} else {
-		put_field_path(f->parent);
-
-		if (f->name != NULL) {
-			printf("%s", f->name);
-			if (f->type == FT_STRUCT_ARRAY)
-				printf("[i_%s]", f->name);
-			putchar('.');
-		}
-	}
-}
-
 static void put_operand(struct condition *condition, size_t i)
 {
 	if (condition->operands[i].is_field) {
-		put_field_path(condition->operands[i].field->parent);
+		put_path(condition->operands[i].field);
 		printf("%s", condition->operands[i].field->name);
 	} else
 		put_string(condition->operands[i].string_len, condition->operands[i].string);
@@ -296,7 +272,7 @@ static void put_condition(struct condition *condition)
 
 }
 
-static void write_field(char *packet_name, struct field *f, struct field_path *path, size_t indent)
+static void write_field(char *packet_name, struct field *f, size_t indent)
 {
 	char *func_name = NULL;
 	if (f->condition != NULL) {
@@ -311,23 +287,19 @@ static void write_field(char *packet_name, struct field *f, struct field_path *p
 			func_name = write_function_name(f->enum_data.type);
 			break;
 		case FT_STRUCT:;
-			struct field_path path_next = { .field_name = f->name, .is_array = false, .next = NULL };
-			struct field_path *path_end = end_of_path(path);
-			path_end->next = &path_next;
-			write_fields(packet_name, f->fields, path, indent);
-			path_end->next = NULL;
+			write_fields(packet_name, f->fields, indent);
 			break;
 		case FT_STRUCT_ARRAY:
-			write_struct_array(packet_name, f, path, indent);
+			write_struct_array(packet_name, f, indent);
 			break;
 		case FT_UNION:
-			write_union(packet_name, f, path, indent);
+			write_union(packet_name, f, indent);
 			break;
 		case FT_STRING:
 		case FT_UUID:
 		case FT_IDENTIFIER:
 		case FT_CHAT:
-			write_string(f, path, indent);
+			write_string(f, indent);
 			break;
 		case FT_EMPTY:
 			break;
@@ -338,7 +310,7 @@ static void write_field(char *packet_name, struct field *f, struct field_path *p
 	if (func_name != NULL) {
 		put_indent(indent);
 		printf("%s(p, ", func_name);
-		put_path(path);
+		put_path(f);
 		printf("%s);\n", f->name);
 	}
 	if (f->condition != NULL) {
@@ -348,10 +320,10 @@ static void write_field(char *packet_name, struct field *f, struct field_path *p
 	}
 }
 
-static void write_fields(char *packet_name, struct field *f, struct field_path *path, size_t indent)
+static void write_fields(char *packet_name, struct field *f, size_t indent)
 {
 	while (f->type) {
-		write_field(packet_name, f, path, indent);
+		write_field(packet_name, f, indent);
 		f = f->next;
 	}
 }
@@ -360,8 +332,7 @@ void generate_write_function(char *name, struct field *f)
 {
 	printf("int protocol_write_%s(struct conn *c, struct %s *pack) {\n", name, name);
 	printf("\tstruct packet *p = c->packet;\n");
-	struct field_path path = { .field_name = "pack", .next = NULL };
-	write_fields(name, f, &path, 1);
+	write_fields(name, f, 1);
 	printf("\treturn conn_write_packet(c);\n");
 	printf("}\n");
 }
