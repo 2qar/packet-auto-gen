@@ -89,4 +89,6 @@ struct token *parse_field(struct token *, struct field *);
 void create_parent_links(struct field *root);
 bool resolve_field_name_refs(struct field *root);
 
+void free_fields(struct field *);
+
 #endif // PARSER_H

@@ -74,3 +74,12 @@ struct token *lexer_parse(char *buf)
 
 	return tokens;
 }
+
+void free_tokens(struct token *t)
+{
+	while (t != NULL) {
+		struct token *next = t->next;
+		free(t);
+		t = next;
+	}
+}

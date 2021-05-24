@@ -15,7 +15,7 @@ struct token {
 };
 
 bool token_equals(struct token *, const char *);
-
 struct token *lexer_parse(char *buf);
+void free_tokens(struct token *);
 
 #endif // LEXER_H

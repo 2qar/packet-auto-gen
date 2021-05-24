@@ -547,3 +547,38 @@ bool resolve_field_name_refs(struct field *root)
 {
 	return resolve_field_name_refs_iter(root, root);
 }
+
+void free_fields(struct field *f)
+{
+	while (f != NULL) {
+		if (f->condition)
+			free(f->condition->op);
+
+		switch (f->type) {
+			case FT_ENUM:
+				for (size_t i = 0; i < f->enum_data.constants_len; ++i)
+					free(f->enum_data.constants[i]);
+				free(f->enum_data.constants);
+				break;
+			case FT_UNION:;
+				struct field *enum_field = f->union_data.enum_field;
+				if (enum_field && enum_field->type == 0) {
+					free(enum_field->name);
+					free(enum_field);
+				}
+				free_fields(f->union_data.fields);
+				break;
+			case FT_STRUCT:
+			case FT_STRUCT_ARRAY:
+				free_fields(f->fields);
+				break;
+			default:
+				break;
+		}
+		free(f->name);
+		free(f->condition);
+		struct field *next = f->next;
+		free(f);
+		f = next;
+	}
+}
