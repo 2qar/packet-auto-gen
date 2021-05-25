@@ -182,6 +182,24 @@ struct token *read_field_type(struct token *type, struct field *field)
 	if (has_args) {
 		return read_type_args(type, field);
 	} else {
+		switch (field->type) {
+			case FT_CHAT:
+				field->string_len = 262144;
+				break;
+			case FT_IDENTIFIER:
+				field->string_len = 32767;
+				break;
+			// FIXME: UUID shouldn't be encoded as a string because
+			//        it doesn't actually represent one, it represents
+			//        a 128-bit integer and a 16-char string happens
+			//        to work the same. It should probably be encoded
+			//        as two 64-bit integers instead
+			case FT_UUID:
+				field->string_len = 16;
+				break;
+			default:
+				break;
+		}
 		return type->next;
 	}
 }
