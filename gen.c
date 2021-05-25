@@ -265,7 +265,9 @@ static void write_string(struct field *f, size_t indent)
 	put_indent(indent);
 	printf("if (%s_len > %zu) {\n", f->name, f->string_max_len);
 	put_indent(indent + 1);
-	printf("fprintf(stderr, \"%%s exceeded max len (%zu)\\n\", %s_len);\n", f->string_max_len, f->name);
+	printf("fprintf(stderr, \"'");
+	put_path(f);
+	printf("%s' exceeded max len (%zu)\\n\");\n", f->name, f->string_max_len);
 	put_indent(indent + 1);
 	printf("return -1;\n");
 	put_indent(indent);
