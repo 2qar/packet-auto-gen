@@ -358,10 +358,11 @@ static void write_fields(char *packet_name, struct field *f, size_t indent)
 	}
 }
 
-void generate_write_function(char *name, struct field *f)
+void generate_write_function(int id, char *name, struct field *f)
 {
 	printf("int protocol_write_%s(struct conn *c, struct %s *pack) {\n", name, name);
 	printf("\tstruct packet *p = c->packet;\n");
+	printf("\tmake_packet(p, 0x%x);\n", id);
 	write_fields(name, f, 1);
 	printf("\treturn conn_write_packet(c);\n");
 	printf("}\n");

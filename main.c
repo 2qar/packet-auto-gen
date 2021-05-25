@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
 
 	put_includes();
 	generate_structs(name, head);
-	generate_write_function(name, head);
+	generate_write_function(id, name, head);
 
 	free_fields(head);
 	free(bytes);
