@@ -1,4 +1,4 @@
-id = 0x32
+id = 0x34
 
 Enum(VarInt) action {
 	ADD_PLAYER
