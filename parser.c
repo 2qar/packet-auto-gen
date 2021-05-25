@@ -189,14 +189,6 @@ struct token *read_field_type(struct token *type, struct field *field)
 			case FT_IDENTIFIER:
 				field->string_max_len = 32767;
 				break;
-			// FIXME: UUID shouldn't be encoded as a string because
-			//        it doesn't actually represent one, it represents
-			//        a 128-bit integer and a 16-char string happens
-			//        to work the same. It should probably be encoded
-			//        as two 64-bit integers instead
-			case FT_UUID:
-				field->string_max_len = 16;
-				break;
 			default:
 				break;
 		}

@@ -31,10 +31,11 @@ static char *ftype_to_ctype(uint32_t ft)
 		case FT_STRUCT_ARRAY:
 			return "struct";
 		case FT_STRING:
-		case FT_UUID:
 		case FT_IDENTIFIER:
 		case FT_CHAT:
 			return "char*";
+		case FT_UUID:
+			return "uint64_t";
 		case FT_UNION:
 			return "union";
 		default:
@@ -120,6 +121,11 @@ static void put_fields(char *name, struct field *f, size_t indent)
 
 			if (f->name)
 				printf(" %s", f->name);
+			// FIXME: kinda hacky, maybe have a field_name_prefix() and
+			//        field_name_suffix() function for printing stuff
+			//        before and after the name?
+			if (f->type == FT_UUID)
+				printf("[2]");
 			printf(";\n");
 		}
 
@@ -179,9 +185,10 @@ static char *write_function_name(uint32_t ft)
 		case FT_FLOAT:
 			return "packet_write_float";
 		case FT_STRING:
-		case FT_UUID:
 		case FT_IDENTIFIER:
 			return "packet_write_string";
+		case FT_UUID:
+			return "packet_write_bytes";
 		default:
 			return NULL;
 	}
@@ -281,6 +288,14 @@ static void write_string(struct field *f, size_t indent)
 	printf("%s);\n", f->name);
 }
 
+static void write_uuid(struct field *f, size_t indent)
+{
+	put_indent(indent);
+	printf("packet_write_bytes(p, 16, ");
+	put_path(f);
+	printf("%s);\n", f->name);
+}
+
 static void put_string(size_t len, const char *s)
 {
 	for (size_t i = 0; i < len; ++i)
@@ -330,10 +345,12 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 			write_union(packet_name, f, indent);
 			break;
 		case FT_STRING:
-		case FT_UUID:
 		case FT_IDENTIFIER:
 		case FT_CHAT:
 			write_string(f, indent);
+			break;
+		case FT_UUID:
+			write_uuid(f, indent);
 			break;
 		case FT_EMPTY:
 			break;
