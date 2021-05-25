@@ -59,7 +59,7 @@ struct field {
 	char *name;
 	struct condition *condition;
 	union {
-		size_t string_len;
+		size_t string_max_len;
 		struct {
 			uint32_t type;
 			size_t constants_len;

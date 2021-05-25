@@ -146,7 +146,7 @@ static struct token *read_type_args(struct token *type, struct field *field)
 			field->union_data.enum_field = enum_field;
 			break;
 		case FT_STRING:
-			if (sscanf(arg->start, "%zu", &field->string_len) != 1) {
+			if (sscanf(arg->start, "%zu", &field->string_max_len) != 1) {
 				perr("invalid string length '", arg, "'\n");
 				args_invalid = true;
 			}
@@ -184,10 +184,10 @@ struct token *read_field_type(struct token *type, struct field *field)
 	} else {
 		switch (field->type) {
 			case FT_CHAT:
-				field->string_len = 262144;
+				field->string_max_len = 262144;
 				break;
 			case FT_IDENTIFIER:
-				field->string_len = 32767;
+				field->string_max_len = 32767;
 				break;
 			// FIXME: UUID shouldn't be encoded as a string because
 			//        it doesn't actually represent one, it represents
@@ -195,7 +195,7 @@ struct token *read_field_type(struct token *type, struct field *field)
 			//        to work the same. It should probably be encoded
 			//        as two 64-bit integers instead
 			case FT_UUID:
-				field->string_len = 16;
+				field->string_max_len = 16;
 				break;
 			default:
 				break;
