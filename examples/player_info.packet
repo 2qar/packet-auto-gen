@@ -20,6 +20,10 @@ Array(struct player) players {
 				Bool          is_signed
 				String(32767) signature (if is_signed)
 			}
+			VarInt gamemode
+			VarInt ping
+			Bool has_display_name
+			Chat display_name (if has_display_name)
 		}
 		VarInt new_gamemode
 		VarInt new_ping
