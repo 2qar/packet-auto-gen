@@ -100,8 +100,10 @@ void print_fields(struct field *f, int indent)
 				put_indent(indent + 2);
 				printf("%s\n", f->enum_data.constants[i]);
 			}
-		} else if (f->type == FT_STRUCT_ARRAY || f->type == FT_STRUCT) {
-			print_fields(f->fields, indent + 1);
+		} else if (f->type == FT_STRUCT) {
+			print_fields(f->struct_fields, indent + 1);
+		} else if (f->type == FT_STRUCT_ARRAY) {
+			print_fields(f->struct_array.fields, indent + 1);
 		} else if (f->type == FT_UNION) {
 			print_fields(f->union_data.fields, indent + 1);
 		}
@@ -155,7 +157,7 @@ int main(int argc, char *argv[])
 		return 1;
 
 	put_includes();
-	generate_struct(name, head);
+	generate_structs(name, head);
 	generate_write_function(name, head);
 
 	free_fields(head);

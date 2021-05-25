@@ -83,7 +83,7 @@ static void put_fields(char *packet_name, struct field *, size_t indent);
 static void put_struct(char *packet_name, struct field *f, size_t indent)
 {
 	printf(" {\n");
-	put_fields(packet_name, f->fields, indent + 1);
+	put_fields(packet_name, f->struct_fields, indent + 1);
 	put_indent(indent);
 	printf("}");
 }
@@ -102,8 +102,7 @@ static void put_fields(char *name, struct field *f, size_t indent)
 					put_struct(name, f, indent);
 					break;
 				case FT_STRUCT_ARRAY:
-					put_struct(name, f, indent);
-					putchar('*');
+					printf(" %s_%s *", name, f->struct_array.struct_name);
 					break;
 				case FT_ARRAY:
 					printf("/* TODO: array */ ");
@@ -126,11 +125,42 @@ static void put_fields(char *name, struct field *f, size_t indent)
 	}
 }
 
-void generate_struct(char *name, struct field *fields)
+static void generate_struct(char *name, struct field *fields)
 {
 	printf("struct %s {\n", name);
 	put_fields(name, fields, 1);
 	printf("};\n");
+}
+
+static void generate_struct_array_structs(char *name, struct field *f)
+{
+	while (f->type != 0) {
+		switch (f->type) {
+			case FT_STRUCT:
+				generate_struct_array_structs(name, f->struct_fields);
+				break;
+			case FT_UNION:
+				generate_struct_array_structs(name, f->union_data.fields);
+				break;
+			case FT_STRUCT_ARRAY:
+				generate_struct_array_structs(name, f->struct_array.fields);
+				break;
+		}
+
+		if (f->type == FT_STRUCT_ARRAY) {
+			printf("struct %s_%s {\n", name, f->struct_array.struct_name);
+			put_fields(name, f->struct_array.fields, 1);
+			printf("};\n");
+		}
+
+		f = f->next;
+	}
+}
+
+void generate_structs(char *name, struct field *fields)
+{
+	generate_struct_array_structs(name, fields);
+	generate_struct(name, fields);
 }
 
 static char *write_function_name(uint32_t ft)
@@ -185,7 +215,7 @@ static void write_struct_array(char *packet_name, struct field *f, size_t indent
 	printf("for (size_t i_%s = 0; i_%s < ", f->name, f->name);
 	put_path(f);
 	printf("%s_len; ++i_%s) {\n", f->name, f->name);
-	write_fields(packet_name, f->fields, indent + 1);
+	write_fields(packet_name, f->struct_array.fields, indent + 1);
 	put_indent(indent);
 	printf("}\n");
 }
@@ -287,7 +317,7 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 			func_name = write_function_name(f->enum_data.type);
 			break;
 		case FT_STRUCT:;
-			write_fields(packet_name, f->fields, indent);
+			write_fields(packet_name, f->struct_fields, indent);
 			break;
 		case FT_STRUCT_ARRAY:
 			write_struct_array(packet_name, f, indent);

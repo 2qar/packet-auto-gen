@@ -69,11 +69,15 @@ struct field {
 			struct field *enum_field;
 			struct field *fields;
 		} union_data;
-		struct field *fields;
+		struct field *struct_fields;
 		struct {
 			uint32_t type;
 			size_t array_len;
 		} array;
+		struct {
+			char *struct_name;
+			struct field *fields;
+		} struct_array;
 	};
 	struct field *parent;
 	struct field *next;

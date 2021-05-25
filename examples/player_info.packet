@@ -8,13 +8,13 @@ Enum(VarInt) action {
 	REMOVE_PLAYER
 }
 VarInt players_len
-Array(struct) players {
+Array(struct player) players {
 	UUID uuid
 	union(action) {
 		struct add_player {
 			String(16) name
 			VarInt properties_len
-			Array(struct) properties {
+			Array(struct property) properties {
 				String(32767) name
 				String(32767) value
 				Bool          is_signed

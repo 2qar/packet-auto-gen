@@ -120,9 +120,19 @@ static struct token *read_type_args(struct token *type, struct field *field)
 			if (!type_valid_for_array(arg_type)) {
 				perr("invalid array type '", arg, "'\n");
 				args_invalid = true;
+			} else if (arg_type == FT_STRUCT) {
+				field->type = FT_STRUCT_ARRAY;
+				arg = arg->next;
+				if (arg->is_sep) {
+					perr("expected a struct name, got '", arg, "'\n");
+					args_invalid = true;
+				} else {
+					size_t struct_name_len = arg->len + 1;
+					char *struct_name = calloc(struct_name_len, sizeof(char));
+					snprintf(struct_name, struct_name_len, "%s", arg->start);
+					field->struct_array.struct_name = struct_name;
+				}
 			} else {
-				if (arg_type == FT_STRUCT)
-					field->type = FT_STRUCT_ARRAY;
 				field->array.type = arg_type;
 			}
 			break;
@@ -391,8 +401,10 @@ struct token *read_field_body(struct token *open_brace, struct field *f)
 			t = parse_fields(open_brace->next->next, fields);
 			if (f->type == FT_UNION)
 				f->union_data.fields = fields;
+			else if (f->type == FT_STRUCT)
+				f->struct_fields = fields;
 			else
-				f->fields = fields;
+				f->struct_array.fields = fields;
 			break;
 		default:
 			break;
@@ -444,8 +456,10 @@ static void create_parent_links_iter(struct field *parent, struct field *f)
 		f->parent = parent;
 		switch (f->type) {
 			case FT_STRUCT:
+				create_parent_links_iter(f, f->struct_fields);
+				break;
 			case FT_STRUCT_ARRAY:
-				create_parent_links_iter(f, f->fields);
+				create_parent_links_iter(f, f->struct_array.fields);
 				break;
 			case FT_UNION:
 				create_parent_links_iter(f, f->union_data.fields);
@@ -470,8 +484,10 @@ static struct field *find_field_with_len(struct field *f, uint32_t f_type, size_
 			res = f;
 		if (f->name && (f->type == f_type || f_type == FT_ANY) && !strncmp(f->name, f_name, f_name_len))
 			res = f;
-		else if (f->type == FT_STRUCT || f->type == FT_STRUCT_ARRAY)
-			res = find_field_with_len(f->fields, f_type, f_name_len, f_name);
+		else if (f->type == FT_STRUCT)
+			res = find_field_with_len(f->struct_fields, f_type, f_name_len, f_name);
+		else if (f->type == FT_STRUCT_ARRAY)
+			res = find_field_with_len(f->struct_array.fields, f_type, f_name_len, f_name);
 		else if (f->type == FT_UNION)
 			res = find_field_with_len(f->union_data.fields, f_type, f_name_len, f_name);
 
@@ -516,8 +532,10 @@ static bool resolve_field_name_refs_iter(struct field *root, struct field *f)
 
 		switch (f->type) {
 			case FT_STRUCT:
+				err = resolve_field_name_refs_iter(root, f->struct_fields);
+				break;
 			case FT_STRUCT_ARRAY:
-				err = resolve_field_name_refs_iter(root, f->fields);
+				err = resolve_field_name_refs_iter(root, f->struct_array.fields);
 				break;
 			case FT_UNION:;
 				struct field *partial = f->union_data.enum_field;
@@ -568,9 +586,12 @@ void free_fields(struct field *f)
 				}
 				free_fields(f->union_data.fields);
 				break;
-			case FT_STRUCT:
 			case FT_STRUCT_ARRAY:
-				free_fields(f->fields);
+				free(f->struct_array.struct_name);
+				free(f->struct_array.fields);
+				break;
+			case FT_STRUCT:
+				free_fields(f->struct_fields);
 				break;
 			default:
 				break;
