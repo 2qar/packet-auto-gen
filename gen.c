@@ -10,6 +10,8 @@ void put_includes()
 	puts("#include <string.h>");
 	puts("#include <stdint.h>");
 	puts("#include <stdio.h>");
+	printf("#include \"%s/conn.h\"\n", CHOWDER_DIR);
+	printf("#include \"%s/packet.h\"\n", CHOWDER_DIR);
 }
 
 static char *ftype_to_ctype(uint32_t ft)
