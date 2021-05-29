@@ -83,10 +83,6 @@ struct field {
 	struct field *next;
 };
 
-struct token *read_field_type(struct token *, struct field *);
-struct token *read_field_name(struct token *, struct field *);
-struct token *read_conditional(struct token *, struct field *);
-struct token *parse_enum(struct token *first_constant, struct field *field);
 struct token *parse_field(struct token *, struct field *);
 
 void create_parent_links(struct field *root);

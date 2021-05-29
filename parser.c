@@ -102,7 +102,7 @@ static struct token *read_type_args(struct token *type, struct field *field)
 	}
 }
 
-struct token *read_field_type(struct token *type, struct field *field)
+static struct token *read_field_type(struct token *type, struct field *field)
 {
 	uint32_t field_hash = str_fnv1a(type->start, type->len);
 	if (!valid_type(field_hash, valid_types)) {
@@ -138,7 +138,7 @@ struct token *read_field_type(struct token *type, struct field *field)
 	}
 }
 
-struct token *read_field_name(struct token *name_tok, struct field *field)
+static struct token *read_field_name(struct token *name_tok, struct field *field)
 {
 	if (name_tok->is_sep && field->type == FT_UNION)
 		return name_tok;
@@ -214,7 +214,7 @@ static struct token *read_operator(struct token *start, char **operator)
 	return end;
 }
 
-struct token *read_conditional(struct token *paren, struct field *field)
+static struct token *read_conditional(struct token *paren, struct field *field)
 {
 	struct token *cond_start = paren->next;
 	if (!token_equals(cond_start, "if")) {
@@ -279,7 +279,7 @@ static bool is_valid_constant_name(char *line)
 }
 */
 
-struct token *parse_enum(struct token *first_constant, struct field *field)
+static struct token *parse_enum(struct token *first_constant, struct field *field)
 {
 	size_t constants_len = 0;
 	struct token *c = first_constant;
@@ -339,7 +339,7 @@ static bool type_has_body(uint32_t ft)
 		ft == FT_STRUCT_ARRAY;
 }
 
-struct token *read_field_body(struct token *open_brace, struct field *f)
+static struct token *read_field_body(struct token *open_brace, struct field *f)
 {
 	struct token *t;
 	switch (f->type) {
