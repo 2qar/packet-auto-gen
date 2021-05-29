@@ -52,20 +52,6 @@ char *packet_name(const char *packet_filename)
 	return name;
 }
 
-void put_id(const char *packet_filename, int id)
-{
-	printf("#define PROTOCOL_ID_");
-	char c = *packet_filename;
-	while (c != '\0') {
-			c = toupper(c);
-		putchar(c);
-
-		++packet_filename;
-		c = *packet_filename;
-	}
-	printf(" 0x%x\n", id);
-}
-
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -85,7 +71,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "malformed ID\n");
 		return 1;
 	}
-	put_id(name, id);
 
 	struct token *tokens = lexer_parse(bytes);
 
@@ -111,6 +96,7 @@ int main(int argc, char *argv[])
 	if (resolve_field_name_refs(head))
 		return 1;
 
+	put_id(name, id);
 	put_includes();
 	generate_structs(name, head);
 	generate_write_function(id, name, head);
