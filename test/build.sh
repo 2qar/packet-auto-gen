@@ -9,11 +9,11 @@
 
 cd ../
 make
-./pc examples/player_info.packet > test/player_info.h
+./pc examples/player_info.packet > /tmp/player_info.h
 cd test
 
 CHOWDER_DIR="$(awk -F'= ' '{print $2}' ../config.mk)"
-gcc -g -o /tmp/player_info player_info.c $CHOWDER_DIR/{conn,packet,nbt,player}.c $CHOWDER_DIR/include/linked_list.c -lssl -lcrypto
+gcc -g -I/tmp -o /tmp/player_info player_info.c $CHOWDER_DIR/{conn,packet,nbt,player}.c $CHOWDER_DIR/include/linked_list.c -lssl -lcrypto
 
 packet_file_path="$(/tmp/player_info)"
 diff player_info.bin $packet_file_path || exit 1
