@@ -8,6 +8,7 @@
 #include "hash.h"
 #include "lexer.h"
 #include "parser.h"
+#include "parser_conf.h"
 
 static void put_token(FILE *f, struct token *t)
 {
@@ -33,60 +34,12 @@ char *next_nonblank(char *s)
 		return s;
 }
 
-static bool type_valid_for_enum(uint32_t ft)
+static bool valid_type(uint32_t t, const uint32_t valid[])
 {
-	// TODO
-	return ft;
-}
-
-static bool type_valid_for_array(uint32_t ft)
-{
-	// TODO
-	return ft;
-}
-
-// :(
-static bool field_type_is_valid(uint32_t ft)
-{
-	switch (ft) {
-		case FT_BOOL:
-		case FT_BYTE:
-		case FT_UBYTE:
-		case FT_SHORT:
-		case FT_USHORT:
-		case FT_INT:
-		case FT_LONG:
-		case FT_FLOAT:
-		case FT_DOUBLE:
-		case FT_STRING:
-		case FT_CHAT:
-		case FT_IDENTIFIER:
-		case FT_VARINT:
-		case FT_VARLONG:
-		case FT_ENTITY_METADATA:
-		case FT_SLOT:
-		case FT_NBT_TAG:
-		case FT_POSITION:
-		case FT_ANGLE:
-		case FT_UUID:
-		case FT_ARRAY:
-		case FT_ENUM:
-		case FT_UNION:
-		case FT_STRUCT:
-		case FT_EMPTY:
-			return true;
-		default:
-			return false;
-	}
-	return false;
-}
-
-static bool field_type_has_args(uint32_t ft)
-{
-	return ft == FT_ENUM ||
-		ft == FT_ARRAY ||
-		ft == FT_UNION ||
-		ft == FT_STRING;
+	size_t i = 0;
+	while (valid[i] != 0 && t != valid[i])
+		++i;
+	return valid[i] != 0;
 }
 
 static struct token *read_type_args(struct token *type, struct field *field)
@@ -109,7 +62,7 @@ static struct token *read_type_args(struct token *type, struct field *field)
 	uint32_t arg_type = str_fnv1a(arg->start, arg->len);
 	switch (field->type) {
 		case FT_ENUM:
-			if (!type_valid_for_enum(arg_type)) {
+			if (!valid_type(arg_type, valid_enum_types)) {
 				perr("invalid enum type '", arg, "'\n");
 				args_invalid = true;
 			} else {
@@ -117,7 +70,7 @@ static struct token *read_type_args(struct token *type, struct field *field)
 			}
 			break;
 		case FT_ARRAY:
-			if (!type_valid_for_array(arg_type)) {
+			if (!valid_type(arg_type, valid_types)) {
 				perr("invalid array type '", arg, "'\n");
 				args_invalid = true;
 			} else if (arg_type == FT_STRUCT) {
@@ -163,12 +116,12 @@ static struct token *read_type_args(struct token *type, struct field *field)
 struct token *read_field_type(struct token *type, struct field *field)
 {
 	uint32_t field_hash = str_fnv1a(type->start, type->len);
-	if (!field_type_is_valid(field_hash)) {
+	if (!valid_type(field_hash, valid_types)) {
 		perr("unknown field type '", type, "'\n");
 		return NULL;
 	}
 
-	bool has_args = field_type_has_args(field_hash);
+	bool has_args = valid_type(field_hash, valid_types_with_args);
 	bool has_paren = token_equals(type->next, "(");
 	if (has_args && !has_paren) {
 		perr("expected args for type '", type, "'\n");
