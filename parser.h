@@ -83,7 +83,6 @@ struct field {
 	struct field *next;
 };
 
-char *next_nonblank(char *);
 struct token *read_field_type(struct token *, struct field *);
 struct token *read_field_name(struct token *, struct field *);
 struct token *read_conditional(struct token *, struct field *);

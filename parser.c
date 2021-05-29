@@ -23,17 +23,6 @@ static void perr(const char *s1, struct token *t, const char *s2)
 	fprintf(stderr, "%s", s2);
 }
 
-char *next_nonblank(char *s)
-{
-	while (*s != '\0' && (*s == ' ' || *s == '\t' || *s == '\n'))
-		++s;
-
-	if (*s == '\0')
-		return NULL;
-	else
-		return s;
-}
-
 static bool valid_type(uint32_t t, const uint32_t valid[])
 {
 	size_t i = 0;
