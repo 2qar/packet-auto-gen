@@ -79,7 +79,6 @@ static struct token *read_type_args(struct token *type, struct field *field)
 			}
 			break;
 		case FT_UNION:;
-			// TODO: check that arg is an enum
 			size_t name_len = arg->len + 1;
 			char *name = calloc(name_len, sizeof(char));
 			snprintf(name, name_len, "%s", arg->start);
