@@ -30,7 +30,7 @@ struct token *lexer_parse(char *buf)
 	char *line_start = buf;
 
 	while (buf[i] != '\0') {
-		if (!t->start && isalnum(buf[i])) {
+		if (!t->start && (isalnum(buf[i]) || buf[i] == '-')) {
 			t->start = &buf[i];
 			token_len = 0;
 		}
