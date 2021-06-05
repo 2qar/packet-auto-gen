@@ -40,8 +40,17 @@ static struct token *read_enum_args(uint32_t arg_type, struct token *arg, struct
 		return NULL;
 	}
 
-	field->enum_data.type = arg_type;
-	return arg->next->next;
+	field->enum_data.type_field = calloc(1, sizeof(struct field));
+	field->enum_data.type_field->type = arg_type;
+	if (valid_type(arg_type, valid_types_with_args)) {
+		struct token *closing_paren = read_type_args(arg, field->enum_data.type_field);
+		if (closing_paren != NULL)
+			return closing_paren->next;
+		else
+			return closing_paren;
+	} else {
+		return arg->next->next;
+	}
 }
 
 static struct token *read_array_args(uint32_t arg_type, struct token *arg, struct field *field)
@@ -537,6 +546,7 @@ void free_fields(struct field *f)
 
 		switch (f->type) {
 			case FT_ENUM:
+				free(f->enum_data.type_field);
 				for (size_t i = 0; i < f->enum_data.constants_len; ++i)
 					free(f->enum_data.constants[i]);
 				free(f->enum_data.constants);

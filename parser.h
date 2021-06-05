@@ -61,7 +61,7 @@ struct field {
 	union {
 		size_t string_max_len;
 		struct {
-			uint32_t type;
+			struct field *type_field;
 			size_t constants_len;
 			char **constants;
 		} enum_data;
