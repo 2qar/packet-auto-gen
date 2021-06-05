@@ -31,6 +31,42 @@ static bool valid_type(uint32_t t, const uint32_t valid[])
 	return valid[i] != 0;
 }
 
+static struct token *read_type_args(struct token *, struct field *);
+
+static struct token *read_enum_args(uint32_t arg_type, struct token *arg, struct field *field)
+{
+	if (!valid_type(arg_type, valid_enum_types)) {
+		perr("invalid enum type '", arg, "'\n");
+		return NULL;
+	}
+
+	field->enum_data.type = arg_type;
+	return arg->next->next;
+}
+
+static struct token *read_array_args(uint32_t arg_type, struct token *arg, struct field *field)
+{
+	struct token *struct_name_tok = arg->next;
+	if (!valid_type(arg_type, valid_types)) {
+		perr("invalid array type '", arg, "'\n");
+		return NULL;
+	} else if (arg_type == FT_STRUCT && struct_name_tok->is_sep) {
+		perr("expected a struct name, got '", arg, "'\n");
+		return NULL;
+	} else if (arg_type == FT_STRUCT) {
+		field->type = FT_STRUCT_ARRAY;
+		size_t struct_name_len = arg->next->len + 1;
+		char *struct_name = calloc(struct_name_len, sizeof(char));
+		snprintf(struct_name, struct_name_len, "%s", arg->next->start);
+		field->struct_array.struct_name = struct_name;
+		return struct_name_tok->next->next;
+	} else {
+		// TODO: support types w/ args
+		field->array.type = arg_type;
+		return arg->next->next;
+	}
+}
+
 static struct token *read_type_args(struct token *type, struct field *field)
 {
 	struct token *arg_start = type->next;
@@ -47,36 +83,14 @@ static struct token *read_type_args(struct token *type, struct field *field)
 		return NULL;
 	}
 
-	bool args_invalid = false;
 	uint32_t arg_type = str_fnv1a(arg->start, arg->len);
+	struct token *arg_end = NULL;
 	switch (field->type) {
 		case FT_ENUM:
-			if (!valid_type(arg_type, valid_enum_types)) {
-				perr("invalid enum type '", arg, "'\n");
-				args_invalid = true;
-			} else {
-				field->enum_data.type = arg_type;
-			}
+			arg_end = read_enum_args(arg_type, arg, field);
 			break;
 		case FT_ARRAY:
-			if (!valid_type(arg_type, valid_types)) {
-				perr("invalid array type '", arg, "'\n");
-				args_invalid = true;
-			} else if (arg_type == FT_STRUCT) {
-				field->type = FT_STRUCT_ARRAY;
-				arg = arg->next;
-				if (arg->is_sep) {
-					perr("expected a struct name, got '", arg, "'\n");
-					args_invalid = true;
-				} else {
-					size_t struct_name_len = arg->len + 1;
-					char *struct_name = calloc(struct_name_len, sizeof(char));
-					snprintf(struct_name, struct_name_len, "%s", arg->start);
-					field->struct_array.struct_name = struct_name;
-				}
-			} else {
-				field->array.type = arg_type;
-			}
+			arg_end = read_array_args(arg_type, arg, field);
 			break;
 		case FT_UNION:;
 			size_t name_len = arg->len + 1;
@@ -85,20 +99,18 @@ static struct token *read_type_args(struct token *type, struct field *field)
 			struct field *enum_field = calloc(1, sizeof(struct field));
 			enum_field->name = name;
 			field->union_data.enum_field = enum_field;
+
+			arg_end = arg->next->next;
 			break;
 		case FT_STRING:
 			if (sscanf(arg->start, "%zu", &field->string_max_len) != 1) {
 				perr("invalid string length '", arg, "'\n");
-				args_invalid = true;
+			} else {
+				arg_end = arg->next->next;
 			}
 			break;
 	}
-
-	if (args_invalid) {
-		return NULL;
-	} else {
-		return arg->next->next;
-	}
+	return arg_end;
 }
 
 static struct token *read_field_type(struct token *type, struct field *field)
