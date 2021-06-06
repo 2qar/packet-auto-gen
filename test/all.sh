@@ -10,7 +10,7 @@ if [ "$(basename $(pwd))" != "test" ]; then
 fi
 
 cd ../
-make
+make || exit 1
 cd test
 
 for filename in $(ls -1 *.c); do

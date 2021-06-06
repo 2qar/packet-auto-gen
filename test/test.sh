@@ -3,8 +3,6 @@
 # maybe this file should be called 'test.sh' because it does a teeny bit more
 # than just build
 
-# TODO: terminate when make or gcc fail
-
 CHOWDER_DIR="$(awk -F'= ' '{print $2}' ../config.mk)"
 
 script_name="$0"
@@ -32,7 +30,7 @@ if ! [ -x "../pc" ]; then
 fi
 ../pc ../examples/$packet_name.packet > /tmp/$packet_name.h
 
-gcc -g -I/tmp -o /tmp/$packet_name $packet_name.c $CHOWDER_DIR/{conn,packet,nbt,player}.c $CHOWDER_DIR/include/linked_list.c -lssl -lcrypto
+gcc -g -I/tmp -o /tmp/$packet_name $packet_name.c $CHOWDER_DIR/{conn,packet,nbt,player}.c $CHOWDER_DIR/include/linked_list.c -lssl -lcrypto || exit 1
 
 packet_file_path="$(/tmp/$packet_name)"
 diff $packet_name.bin $packet_file_path || exit 1
