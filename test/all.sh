@@ -15,5 +15,5 @@ cd test
 
 for filename in $(ls -1 *.c); do
 	packet_name=$(echo "$filename" | sed 's/\.c//g')
-	./build.sh "$packet_name"
+	./test.sh "$packet_name"
 done
