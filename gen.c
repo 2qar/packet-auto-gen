@@ -387,7 +387,9 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 		case FT_ENUM:
 			if (f->enum_data.type_field->type == FT_STRING)
 				write_string_enum_check(f, indent);
-			func_name = write_function_name(f->enum_data.type_field->type);
+			f->enum_data.type_field->name = f->name;
+			f->enum_data.type_field->parent = f->parent;
+			write_field(packet_name, f->enum_data.type_field, indent);
 			break;
 		case FT_STRUCT:;
 			write_fields(packet_name, f->struct_fields, indent);
