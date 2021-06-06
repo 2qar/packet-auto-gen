@@ -28,11 +28,14 @@ void put_includes()
 	printf("#include \"%s/packet.h\"\n", CHOWDER_DIR);
 }
 
-static char *ftype_to_ctype(uint32_t ft)
+static char *ftype_to_ctype(struct field *f)
 {
-	switch (ft) {
+	switch (f->type) {
 		case FT_ENUM:
-			return "enum";
+			if (f->enum_data.type_field->type == FT_STRING)
+				return "char*";
+			else
+				return "enum";
 		case FT_DOUBLE:
 			return "double";
 		case FT_BOOL:
@@ -112,10 +115,11 @@ static void put_fields(char *name, struct field *f, size_t indent)
 	while (f->type) {
 		if (f->type != FT_EMPTY) {
 			put_indent(indent);
-			printf("%s", ftype_to_ctype(f->type));
+			printf("%s", ftype_to_ctype(f));
 			switch (f->type) {
 				case FT_ENUM:
-					put_enum(name, f, indent);
+					if (f->enum_data.type_field->type != FT_STRING)
+						put_enum(name, f, indent);
 					break;
 				case FT_STRUCT:
 					put_struct(name, f, indent);
@@ -234,6 +238,38 @@ static void put_path(struct field *f)
 static void write_field(char *packet_name, struct field *, size_t indent);
 static void write_fields(char *packet_name, struct field *, size_t indent);
 
+static void write_string_enum_check(struct field *enum_field, size_t indent)
+{
+	put_indent(indent);
+	printf("static const char *%s_values[] = { ", enum_field->name);
+	struct enum_constant *c = enum_field->enum_data.constants;
+	while (c != NULL) {
+		printf("\"%s\", ", c->name);
+		c = c->next;
+	}
+	printf("NULL };\n");
+
+	put_indent(indent);
+	printf("size_t i_%s = 0;\n", enum_field->name);
+	put_indent(indent);
+	printf("while (%s_values[i_%s] != NULL && strcmp(%s_values[i_%s], ", enum_field->name, enum_field->name, enum_field->name, enum_field->name);
+	put_path(enum_field);
+	printf("%s))\n", enum_field->name);
+	put_indent(indent + 1);
+	printf("++i_%s;\n", enum_field->name);
+
+	put_indent(indent);
+	printf("if (%s_values[i_%s] == NULL) {\n", enum_field->name, enum_field->name);
+	put_indent(indent + 1);
+	printf("fprintf(stderr, \"'%%s' isn't a valid value for %s\", ", enum_field->name);
+	put_path(enum_field);
+	printf("%s);\n", enum_field->name);
+	put_indent(indent + 1);
+	printf("return -1;\n");
+	put_indent(indent);
+	printf("}\n");
+}
+
 static void write_struct_array(char *packet_name, struct field *f, size_t indent)
 {
 	put_indent(indent);
@@ -349,6 +385,8 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 	}
 	switch (f->type) {
 		case FT_ENUM:
+			if (f->enum_data.type_field->type == FT_STRING)
+				write_string_enum_check(f, indent);
 			func_name = write_function_name(f->enum_data.type_field->type);
 			break;
 		case FT_STRUCT:;
