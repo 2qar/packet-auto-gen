@@ -299,38 +299,52 @@ static bool is_valid_constant_name(char *line)
 }
 */
 
+static struct token *parse_int_constant(struct token *constant_start, struct enum_constant *enum_constant)
+{
+	if (!token_equals(constant_start->next, "\n"))
+		return NULL;
+
+	size_t constant_len = constant_start->len + 1;
+	enum_constant->name = calloc(constant_len, sizeof(char));
+	snprintf(enum_constant->name, constant_len, "%s", constant_start->start);
+	return constant_start->next->next;
+}
+
+static struct token *parse_string_constant(struct token *constant_start, struct enum_constant *enum_constant)
+{
+	if (constant_start->start[0] != '"' ||
+			constant_start->start[constant_start->len - 1] != '"' ||
+			!token_equals(constant_start->next, "\n"))
+		return NULL;
+
+	size_t constant_len = constant_start->len - 1;
+	enum_constant->name = calloc(constant_len, sizeof(char));
+	snprintf(enum_constant->name, constant_len, "%s", constant_start->start + 1);
+	return constant_start->next->next;
+}
+
 static struct token *parse_enum(struct token *first_constant, struct field *field)
 {
-	size_t constants_len = 0;
-	struct token *c = first_constant;
-	while (c && !c->is_sep && token_equals(c->next, "\n")) {
-		c = c->next->next;
-		++constants_len;
+	struct token *(*parse_constant)(struct token *, struct enum_constant *);
+	if (first_constant->start[0] == '"')
+		parse_constant = parse_string_constant;
+	else
+		parse_constant = parse_int_constant;
+
+	struct enum_constant *constants = calloc(1, sizeof(struct enum_constant));
+	struct enum_constant *constant = constants;
+	struct token *c = parse_constant(first_constant, constants);
+	while (c && !token_equals(c, "}")) {
+		constant->next = calloc(1, sizeof(struct enum_constant));
+		constant = constant->next;
+		c = parse_constant(c, constant);
 	}
+
 	if (!c || !token_equals(c, "}")) {
-		perr("bad constant '", c, "'");
-		if (c && c->next) {
-			fprintf(stderr, "; expected '\\n', got '");
-			put_token(stderr, c->next);
-			fputc('\'', stderr);
-		}
-		fputc('\n', stderr);
+		// FIXME: rewrite the error handling here
 		return NULL;
 	}
 
-	c = first_constant;
-	char **constants = calloc(constants_len, sizeof(char *));
-	size_t i = 0;
-	while (!token_equals(c, "}")) {
-		size_t constant_len = c->len + 1;
-		char *constant = calloc(constant_len, sizeof(char));
-		snprintf(constant, constant_len, "%s", c->start);
-		constants[i] = constant;
-		c = c->next->next;
-		++i;
-	}
-
-	field->enum_data.constants_len = constants_len;
 	field->enum_data.constants = constants;
 	return c->next;
 }
@@ -547,9 +561,13 @@ void free_fields(struct field *f)
 		switch (f->type) {
 			case FT_ENUM:
 				free(f->enum_data.type_field);
-				for (size_t i = 0; i < f->enum_data.constants_len; ++i)
-					free(f->enum_data.constants[i]);
-				free(f->enum_data.constants);
+				struct enum_constant *c = f->enum_data.constants;
+				struct enum_constant *next;
+				while (c != NULL) {
+					next = c->next;
+					free(c);
+					c = next;
+				}
 				break;
 			case FT_UNION:;
 				struct field *enum_field = f->union_data.enum_field;

@@ -54,6 +54,11 @@ struct condition {
 	char *op;
 };
 
+struct enum_constant {
+	char *name;
+	struct enum_constant *next;
+};
+
 struct field {
 	uint32_t type;
 	char *name;
@@ -62,8 +67,7 @@ struct field {
 		size_t string_max_len;
 		struct {
 			struct field *type_field;
-			size_t constants_len;
-			char **constants;
+			struct enum_constant *constants;
 		} enum_data;
 		struct {
 			struct field *enum_field;

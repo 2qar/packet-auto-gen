@@ -86,10 +86,12 @@ static void put_enum_constant(char *packet_name, char *enum_name, char *constant
 static void put_enum(char *packet_name, struct field *f, size_t indent)
 {
 	printf(" {\n");
-	for (size_t i = 0; i < f->enum_data.constants_len; ++i) {
+	struct enum_constant *c = f->enum_data.constants;
+	while (c != NULL) {
 		put_indent(indent + 1);
-		put_enum_constant(packet_name, f->name, f->enum_data.constants[i]);
+		put_enum_constant(packet_name, f->name, c->name);
 		printf(",\n");
+		c = c->next;
 	}
 	put_indent(indent);
 	printf("}");
@@ -251,11 +253,11 @@ static void write_union(char *packet_name, struct field *union_field, size_t ind
 	put_path(enum_field);
 	printf("%s) {\n", enum_field->name);
 	struct field *f = union_field->union_data.fields;
-	size_t i = 0;
+	struct enum_constant *c = enum_field->enum_data.constants;
 	// FIXME: check during parsing or some other stage that
 	//        the enum's constants_len == union_data.fields len,
 	//        and that the values are 0 -> len-1
-	while (f->type != 0 && i < enum_field->enum_data.constants_len) {
+	while (f->type != 0 && c != NULL) {
 		put_indent(indent + 1);
 		printf("case ");
 		// FIXME: re-writing the constants again with the packet name here
@@ -263,13 +265,13 @@ static void write_union(char *packet_name, struct field *union_field, size_t ind
 		//        with the packet name as a part of them during parsing
 		//        or some other stage so the packet_name doesn't need to
 		//        be passed around everywhere just for this function
-		put_enum_constant(packet_name, enum_field->name, enum_field->enum_data.constants[i]);
+		put_enum_constant(packet_name, enum_field->name, c->name);
 		printf(":;\n");
 		write_field(packet_name, f, indent + 2);
 		put_indent(indent + 2);
 		printf("break;\n");
 		f = f->next;
-		++i;
+		c = c->next;
 	}
 
 	// for each enum constant,
