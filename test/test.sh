@@ -3,8 +3,6 @@
 # maybe this file should be called 'test.sh' because it does a teeny bit more
 # than just build
 
-CHOWDER_DIR="$(awk -F'= ' '{print $2}' ../config.mk)"
-
 script_name="$0"
 packet_name="$1"
 
@@ -30,7 +28,8 @@ if ! [ -x "../pc" ]; then
 fi
 ../pc ../examples/$packet_name.packet > /tmp/$packet_name.h
 
-gcc -g -I/tmp -I$CHOWDER_DIR -o /tmp/$packet_name $packet_name.c common.c $CHOWDER_DIR/{conn,packet,nbt,player}.c $CHOWDER_DIR/include/linked_list.c -lssl -lcrypto || exit 1
+chowder_dir="$(awk -F'= ' '{print $2}' ../config.mk)"
+gcc -g -I/tmp -I$chowder_dir -o /tmp/$packet_name $packet_name.c bin/*.o -lssl -lcrypto || exit 1
 
 packet_file_path="$(/tmp/$packet_name)"
 diff $packet_name.bin $packet_file_path || exit 1

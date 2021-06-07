@@ -13,6 +13,11 @@ cd ../
 make || exit 1
 cd test
 
+if ! [ -d "bin" ]; then
+	mkdir bin
+fi
+make || exit 1
+
 files="$(ls -1 *.c | sed 's/common.c//g')"
 for filename in $files; do
 	packet_name=$(echo "$filename" | sed 's/\.c//g')
