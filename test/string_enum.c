@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "common.h"
 #include "string_enum.h"
 
 int main()
@@ -9,27 +10,16 @@ int main()
 	string_enum.level_type = "default";
 	string_enum.test = 1;
 
-	char path[] = "/tmp/packet-XXXXXX";
-	mkstemp(path);
-	FILE *f = fopen(path, "w");
-	if (f == NULL) {
-		perror("fopen");
+	struct test t = {0};
+	test_init(&t);
+	if (t.conn == NULL)
 		return 1;
-	}
 
-	struct packet p;
-	packet_init(&p);
-
-	struct conn c = {0};
-	c.packet = &p;
-	c.sfd = fileno(f);
-
-	int status = protocol_write_string_enum(&c, &string_enum);
-	free(p.data);
-	fclose(f);
+	int status = protocol_write_string_enum(t.conn, &string_enum);
 	if (status < 0)
 		return 1;
 
-	printf("%s\n", path);
+	printf("%s\n", t.packet_file_path);
+	test_cleanup(&t);
 	return 0;
 }

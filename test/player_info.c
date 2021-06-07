@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "common.h"
 #include "player_info.h"
 
 int main()
@@ -17,27 +18,16 @@ int main()
 	player.add_player.properties = &prop;
 	player_info.players = &player;
 
-	char path[] = "/tmp/packet-XXXXXX";
-	mkstemp(path);
-	FILE *f = fopen(path, "w");
-	if (f == NULL) {
-		perror("fopen");
+	struct test t = {0};
+	test_init(&t);
+	if (t.conn == NULL)
 		return 1;
-	}
 
-	struct packet p;
-	packet_init(&p);
-
-	struct conn c = {0};
-	c.packet = &p;
-	c.sfd = fileno(f);
-
-	int status = protocol_write_player_info(&c, &player_info);
-	free(p.data);
-	fclose(f);
+	int status = protocol_write_player_info(t.conn, &player_info);
 	if (status < 0)
 		return 1;
 
-	printf("%s\n", path);
+	printf("%s\n", t.packet_file_path);
+	test_cleanup(&t);
 	return 0;
 }

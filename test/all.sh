@@ -13,7 +13,8 @@ cd ../
 make || exit 1
 cd test
 
-for filename in $(ls -1 *.c); do
+files="$(ls -1 *.c | sed 's/common.c//g')"
+for filename in $files; do
 	packet_name=$(echo "$filename" | sed 's/\.c//g')
 	./test.sh "$packet_name"
 done
