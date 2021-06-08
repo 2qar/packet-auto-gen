@@ -31,6 +31,7 @@ fi
 chowder_dir="$(awk -F'= ' '{print $2}' ../config.mk)"
 gcc -g -I/tmp -I$chowder_dir -o /tmp/$packet_name $packet_name.c bin/*.o -lssl -lcrypto || exit 1
 
+# TODO: surpress output on stderr unless the test program exits with an error
 packet_file_path="$(/tmp/$packet_name)"
 diff $packet_name.bin $packet_file_path || exit 1
 

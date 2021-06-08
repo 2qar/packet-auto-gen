@@ -7,7 +7,6 @@
 int main()
 {
 	struct string_enum string_enum = {0};
-	string_enum.level_type = "default";
 	string_enum.test = 1;
 
 	struct test t = {0};
@@ -15,7 +14,15 @@ int main()
 	if (t.conn == NULL)
 		return 1;
 
+	string_enum.level_type = "bad_type";
 	int status = protocol_write_string_enum(t.conn, &string_enum);
+	if (status >= 0)
+		return 1;
+
+	ftruncate(t.packet_fd, 0);
+
+	string_enum.level_type = "default";
+	status = protocol_write_string_enum(t.conn, &string_enum);
 	if (status < 0)
 		return 1;
 
