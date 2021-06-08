@@ -20,6 +20,7 @@ void put_id(const char *packet_filename, int id)
 
 void put_includes()
 {
+	puts("#include <assert.h>");
 	puts("#include <stdbool.h>");
 	puts("#include <string.h>");
 	puts("#include <stdint.h>");
@@ -191,24 +192,22 @@ void generate_structs(char *name, struct field *fields)
 	generate_struct(name, fields);
 }
 
-static char *write_function_name(uint32_t ft)
+static char *ftype_to_packet_type(uint32_t ft)
 {
 	switch (ft) {
-		case FT_ENUM:
-			return "packet_write_int";
 		case FT_DOUBLE:
-			return "packet_write_double";
+			return "double";
 		case FT_BOOL:
-			return "packet_write_byte";
+			return "byte";
 		case FT_VARINT:
-			return "packet_write_varint";
+			return "varint";
 		case FT_FLOAT:
-			return "packet_write_float";
+			return "float";
 		case FT_STRING:
 		case FT_IDENTIFIER:
-			return "packet_write_string";
+			return "string";
 		case FT_UUID:
-			return "packet_write_bytes";
+			return "bytes";
 		default:
 			return NULL;
 	}
@@ -375,7 +374,7 @@ static void put_condition(struct condition *condition)
 
 static void write_field(char *packet_name, struct field *f, size_t indent)
 {
-	char *func_name = NULL;
+	char *packet_type = NULL;
 	if (f->condition != NULL) {
 		put_indent(indent);
 		printf("if (");
@@ -411,12 +410,12 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 		case FT_EMPTY:
 			break;
 		default:
-			func_name = write_function_name(f->type);
+			packet_type = ftype_to_packet_type(f->type);
 			break;
 	}
-	if (func_name != NULL) {
+	if (packet_type != NULL) {
 		put_indent(indent);
-		printf("%s(p, ", func_name);
+		printf("packet_write_%s(p, ", packet_type);
 		put_path(f);
 		printf("%s);\n", f->name);
 	}
@@ -442,5 +441,157 @@ void generate_write_function(int id, char *name, struct field *f)
 	printf("\tmake_packet(p, 0x%x);\n", id);
 	write_fields(name, f, 1);
 	printf("\treturn conn_write_packet(c);\n");
+	printf("}\n");
+}
+
+static void read_varint(struct field *f, size_t indent)
+{
+	put_indent(indent);
+	printf("n = packet_read_varint(p, (int *) &");
+	put_path(f);
+	printf("%s);\n", f->name);
+	put_indent(indent);
+	printf("if (n < 0)\n");
+	put_indent(indent + 1);
+	printf("return -1;\n");
+}
+
+static void read_uuid(struct field *f, size_t indent)
+{
+	put_indent(indent);
+	printf("if (!packet_read_bytes(p, 16, (uint8_t *) &");
+	put_path(f);
+	printf("%s))\n", f->name);
+	put_indent(indent + 1);
+	printf("return -1;\n");
+}
+
+static void read_string(struct field *f, size_t indent)
+{
+	put_indent(indent);
+	printf("size_t %s_len = %zu;\n", f->name, f->string_max_len + 1);
+	put_indent(indent);
+	put_path(f);
+	printf("%s = calloc(%s_len, sizeof(char));\n", f->name, f->name);
+	put_indent(indent);
+	printf("if (packet_read_string(p, %s_len, ", f->name);
+	put_path(f);
+	printf("%s) < 0)\n", f->name);
+	put_indent(indent + 1);
+	printf("return -1;\n");
+}
+
+static void read_field(char *packet_name, struct field *f, size_t indent);
+
+static void read_union(char *packet_name, struct field *union_field, size_t indent)
+{
+	put_indent(indent);
+	printf("switch (");
+	put_path(union_field->union_data.enum_field);
+	printf("%s) {\n", union_field->union_data.enum_field->name);
+
+	struct enum_constant *c = union_field->union_data.enum_field->enum_data.constants;
+	struct field *f = union_field->union_data.fields;
+	while (c != NULL && f->type) {
+		put_indent(indent + 1);
+		printf("case ");
+		put_enum_constant(packet_name, union_field->union_data.enum_field->name, c->name);
+		printf(":;\n");
+		read_field(packet_name, f, indent + 2);
+		put_indent(indent + 2);
+		printf("break;\n");
+
+		c = c->next;
+		f = f->next;
+	}
+	put_indent(indent);
+	printf("}\n");
+}
+
+static void read_fields(char *packet_name, struct field *f, size_t indent);
+
+static void read_struct_array(char *packet_name, struct field *f, size_t indent)
+{
+	put_indent(indent);
+	put_path(f);
+	printf("%s = calloc(", f->name);
+	put_path(f);
+	printf("%s_len, sizeof(struct %s_%s));\n", f->name, packet_name, f->struct_array.struct_name);
+	put_indent(indent);
+	printf("for (size_t i_%s = 0; i_%s < ", f->name,  f->name);
+	put_path(f);
+	printf("%s_len; ++i_%s) {\n", f->name, f->name);
+	read_fields(packet_name, f->struct_array.fields, indent + 1);
+	put_indent(indent);
+	printf("}\n");
+}
+
+static void read_field(char *packet_name, struct field *f, size_t indent)
+{
+	char *packet_type = NULL;
+	switch (f->type) {
+		case FT_ENUM:
+			f->enum_data.type_field->name = f->name;
+			f->enum_data.type_field->parent = f->parent;
+			read_field(packet_name, f->enum_data.type_field, indent);
+			break;
+		case FT_VARINT:
+			read_varint(f, indent);
+			break;
+		case FT_UUID:
+			read_uuid(f, indent);
+			break;
+		case FT_STRING:
+			read_string(f, indent);
+			break;
+		case FT_UNION:
+			read_union(packet_name, f, indent);
+			break;
+		case FT_STRUCT_ARRAY:
+			read_struct_array(packet_name, f, indent);
+			break;
+		case FT_STRUCT:
+			read_fields(packet_name, f->struct_fields, indent);
+			break;
+		default:
+			packet_type = ftype_to_packet_type(f->type);
+			break;
+	}
+	if (packet_type != NULL) {
+		put_indent(indent);
+		printf("if (!packet_read_%s(p, ", packet_type);
+		switch (f->type) {
+			case FT_BOOL:
+				/* fallthrough */
+			case FT_BYTE:
+				printf("(uint8_t *) ");
+				break;
+		}
+		putchar('&');
+		put_path(f);
+		printf("%s))\n", f->name);
+		put_indent(indent + 1);
+		printf("return -1;\n");
+	}
+}
+
+static void read_fields(char *packet_name, struct field *f, size_t indent)
+{
+	while (f->type) {
+		read_field(packet_name, f, indent);
+		f = f->next;
+	}
+}
+
+void generate_read_function(int id, char *packet_name, struct field *root)
+{
+	printf("int protocol_read_%s(struct conn *c, struct %s *pack) {\n", packet_name, packet_name);
+	printf("\tstruct packet *p = c->packet;\n");
+	printf("\tif (conn_packet_read_header(c) < 0)\n");
+	printf("\t\treturn -1;\n");
+	printf("\tassert(p->packet_id == 0x%x);\n", id);
+	printf("\tint n;\n");
+	read_fields(packet_name, root, 1);
+	printf("\treturn 0;\n");
 	printf("}\n");
 }
