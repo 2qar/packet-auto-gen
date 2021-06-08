@@ -31,8 +31,16 @@ fi
 chowder_dir="$(awk -F'= ' '{print $2}' ../config.mk)"
 gcc -g -I/tmp -I$chowder_dir -o /tmp/$packet_name $packet_name.c bin/*.o -lssl -lcrypto || exit 1
 
-# TODO: surpress output on stderr unless the test program exits with an error
-packet_file_path="$(/tmp/$packet_name)"
+# FIXME: This is a hack, the real fix is to return useful errors
+#        from the protocol functions instead of printing errors
+#        inside of those functions.
+packet_stderr="$(mktemp /tmp/packet-stderr-XXXXXX)"
+packet_file_path="$(/tmp/$packet_name 2> $packet_stderr)"
+if [ $? -ne 0 ]; then
+	cat $packet_stderr 1>&2
+	exit 1
+fi
+
 diff $packet_name.bin $packet_file_path || exit 1
 
 rm $packet_file_path
