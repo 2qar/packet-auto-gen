@@ -289,16 +289,6 @@ static struct token *read_conditional(struct token *paren, struct field *field)
 	return cond_end->next;
 }
 
-/*
-static bool is_valid_constant_name(char *line)
-{
-	while (*line != '\0' && *line != '\n' && (isalpha(*line) || *line == '_')) {
-		++line;
-	}
-	return *line == '\n';
-}
-*/
-
 static struct token *parse_int_constant(struct token *constant_start, struct enum_constant *enum_constant)
 {
 	if (!token_equals(constant_start->next, "\n"))
