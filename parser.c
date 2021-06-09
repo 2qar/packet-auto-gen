@@ -334,14 +334,19 @@ static struct token *parse_enum(struct token *first_constant, struct field *fiel
 	struct enum_constant *constants = calloc(1, sizeof(struct enum_constant));
 	struct enum_constant *constant = constants;
 	struct token *c = parse_constant(first_constant, constants);
-	while (c && !token_equals(c, "}")) {
+	struct token *c_prev = c;
+	while (c && c->len != 0 && !token_equals(c, "}")) {
 		constant->next = calloc(1, sizeof(struct enum_constant));
 		constant = constant->next;
+		c_prev = c;
 		c = parse_constant(c, constant);
 	}
 
-	if (!c || !token_equals(c, "}")) {
-		// FIXME: rewrite the error handling here
+	if (!c) {
+		perr("invalid constant '", c_prev, "'\n");
+		return NULL;
+	} else if (c->len == 0) {
+		fprintf(stderr, "hit EOF looking for the end of enum %s\n", field->name);
 		return NULL;
 	}
 
