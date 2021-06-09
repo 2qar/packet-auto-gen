@@ -570,21 +570,17 @@ void free_fields(struct field *f)
 				struct enum_constant *next;
 				while (c != NULL) {
 					next = c->next;
+					free(c->name);
 					free(c);
 					c = next;
 				}
 				break;
 			case FT_UNION:;
-				struct field *enum_field = f->union_data.enum_field;
-				if (enum_field && enum_field->type == 0) {
-					free(enum_field->name);
-					free(enum_field);
-				}
 				free_fields(f->union_data.fields);
 				break;
 			case FT_STRUCT_ARRAY:
 				free(f->struct_array.struct_name);
-				free(f->struct_array.fields);
+				free_fields(f->struct_array.fields);
 				break;
 			case FT_STRUCT:
 				free_fields(f->struct_fields);
