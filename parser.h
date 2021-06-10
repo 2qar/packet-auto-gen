@@ -56,6 +56,8 @@ struct condition {
 
 struct enum_constant {
 	char *name;
+	bool has_value;
+	int value;
 	struct enum_constant *next;
 };
 

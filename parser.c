@@ -291,13 +291,26 @@ static struct token *read_conditional(struct token *paren, struct field *field)
 
 static struct token *parse_int_constant(struct token *constant_start, struct enum_constant *enum_constant)
 {
-	if (!token_equals(constant_start->next, "\n"))
-		return NULL;
+	struct token *constant_end = NULL;
+	if (token_equals(constant_start->next, "=")) {
+		struct token *value_tok = constant_start->next->next;
+		if (value_tok == NULL ||
+				sscanf(value_tok->start, "%d\n", &enum_constant->value) != 1)
+			return NULL;
+		enum_constant->has_value = true;
+		constant_end = value_tok;
+	} else if (token_equals(constant_start->next, "\n")) {
+		constant_end = constant_start;
+	}
 
-	size_t constant_len = constant_start->len + 1;
-	enum_constant->name = calloc(constant_len, sizeof(char));
-	snprintf(enum_constant->name, constant_len, "%s", constant_start->start);
-	return constant_start->next->next;
+	if (constant_end != NULL) {
+		size_t constant_len = constant_start->len + 1;
+		enum_constant->name = calloc(constant_len, sizeof(char));
+		snprintf(enum_constant->name, constant_len, "%s", constant_start->start);
+		return constant_end->next->next;
+	} else {
+		return NULL;
+	}
 }
 
 static struct token *parse_string_constant(struct token *constant_start, struct enum_constant *enum_constant)

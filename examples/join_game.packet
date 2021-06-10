@@ -3,7 +3,7 @@ id = 0x26
 Int entity_id
 UByte gamemode
 Enum(Int) dimension {
-	NETHER = -1	/* TODO: default values */
+	NETHER = -1
 	OVERWORLD
 	END
 }

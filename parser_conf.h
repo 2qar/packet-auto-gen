@@ -35,6 +35,7 @@ const uint32_t valid_types[] = {
 };
 
 const uint32_t valid_enum_types[] = {
+	FT_INT,
 	FT_VARINT,
 	FT_STRING,
 	0,

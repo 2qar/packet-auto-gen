@@ -94,6 +94,8 @@ static void put_enum(char *packet_name, struct field *f, size_t indent)
 	while (c != NULL) {
 		put_indent(indent + 1);
 		put_enum_constant(packet_name, f->name, c->name);
+		if (c->has_value)
+			printf(" = %d", c->value);
 		printf(",\n");
 		c = c->next;
 	}
@@ -199,6 +201,8 @@ static char *ftype_to_packet_type(uint32_t ft)
 			return "double";
 		case FT_BOOL:
 			return "byte";
+		case FT_INT:
+			return "int";
 		case FT_VARINT:
 			return "varint";
 		case FT_FLOAT:
