@@ -390,8 +390,6 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 		case FT_ENUM:
 			if (f->enum_data.type_field->type == FT_STRING)
 				write_string_enum_check(f, indent);
-			f->enum_data.type_field->name = f->name;
-			f->enum_data.type_field->parent = f->parent;
 			write_field(packet_name, f->enum_data.type_field, indent);
 			break;
 		case FT_STRUCT:;
@@ -535,8 +533,6 @@ static void read_field(char *packet_name, struct field *f, size_t indent)
 	char *packet_type = NULL;
 	switch (f->type) {
 		case FT_ENUM:
-			f->enum_data.type_field->name = f->name;
-			f->enum_data.type_field->parent = f->parent;
 			read_field(packet_name, f->enum_data.type_field, indent);
 			break;
 		case FT_VARINT:

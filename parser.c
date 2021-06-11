@@ -172,6 +172,8 @@ static struct token *read_field_name(struct token *name_tok, struct field *field
 	char *name = calloc(name_len, sizeof(char));
 	snprintf(name, name_len, "%s", name_tok->start);
 	field->name = name;
+	if (field->type == FT_ENUM)
+		field->enum_data.type_field->name = field->name;
 	return name_tok->next;
 }
 
@@ -449,6 +451,9 @@ static void create_parent_links_iter(struct field *parent, struct field *f)
 	while (f->type != 0) {
 		f->parent = parent;
 		switch (f->type) {
+			case FT_ENUM:
+				f->enum_data.type_field->parent = f->parent;
+				break;
 			case FT_STRUCT:
 				create_parent_links_iter(f, f->struct_fields);
 				break;
