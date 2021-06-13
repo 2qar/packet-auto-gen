@@ -236,6 +236,16 @@ static struct token *read_operator(struct token *start, char **operator)
 	return end;
 }
 
+static void read_operand(struct token *op_start, struct condition *condition, size_t i)
+{
+	if (is_num_literal(op_start->len, op_start->start))
+		condition->operands[i].is_field = false;
+	else
+		condition->operands[i].is_field = true;
+	condition->operands[i].string_len = op_start->len;
+	condition->operands[i].string = op_start->start;
+}
+
 static struct token *read_conditional(struct token *paren, struct field *field)
 {
 	struct token *cond_start = paren->next;
@@ -260,12 +270,7 @@ static struct token *read_conditional(struct token *paren, struct field *field)
 	// FIXME: only one or two operands, no complicated logic.
 	//        maybe that's for the best?
 	struct condition *condition = calloc(1, sizeof(struct condition));
-	if (is_num_literal(cond_start->len, cond_start->start))
-		condition->operands[0].is_field = false;
-	else
-		condition->operands[0].is_field = true;
-	condition->operands[0].string_len = cond_start->len;
-	condition->operands[0].string = cond_start->start;
+	read_operand(cond_start, condition, 0);
 
 	cond_start = cond_start->next;
 	if (cond_start != cond_end) {
@@ -277,13 +282,7 @@ static struct token *read_conditional(struct token *paren, struct field *field)
 			return NULL;
 		}
 
-		if (is_num_literal(next_operand->len, next_operand->start))
-			condition->operands[1].is_field = false;
-		else
-			condition->operands[1].is_field = true;
-
-		condition->operands[1].string_len = next_operand->len;
-		condition->operands[1].string = next_operand->start;
+		read_operand(cond_start, condition, 1);
 	}
 
 	field->condition = condition;
