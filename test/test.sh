@@ -29,7 +29,11 @@ fi
 ../pc ../examples/$packet_name.packet > /tmp/$packet_name.h
 
 chowder_dir="$(awk -F'= ' '{print $2}' ../config.mk)"
-gcc -g -I/tmp -I../include -I$chowder_dir -o /tmp/$packet_name $packet_name.c bin/*.o -lssl -lcrypto || exit 1
+gcc -I/tmp -I../include -I$chowder_dir \
+	-g -Wall -Wextra -Werror -pedantic \
+	-o /tmp/$packet_name \
+	$packet_name.c bin/*.o \
+	-lssl -lcrypto || exit 1
 packet_file_path=$(/tmp/$packet_name || exit 1)
 diff $packet_name.bin $packet_file_path || exit 1
 
