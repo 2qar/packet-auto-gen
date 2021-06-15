@@ -15,15 +15,21 @@ int main()
 		return 1;
 
 	string_enum.level_type = "bad_type";
-	int status = protocol_write_string_enum(t.conn, &string_enum);
-	if (status >= 0)
+	struct protocol_err r = protocol_write_string_enum(t.conn, &string_enum);
+	if (r.err_type != PROTOCOL_ERR_INPUT ||
+			r.input_err.err_type != PROTOCOL_INPUT_ERR_BAD_ENUM_CONSTANT ||
+			strcmp(r.input_err.field_name, "level_type")) {
+		fprintf(stderr, "expected { .err_type = PROTOCOL_ERR_INPUT, .input_err.err_type = PROTOCOL_INPUT_ERR_BAD_ENUM_CONSTANT, .input_err.field_name = \"level_type\" }\n"
+				"     got { .err_type = %d, .input_err.err_type = %d, .input_err.field_name = \"%s\" }\n",
+				r.err_type, r.input_err.err_type, r.input_err.field_name);
 		return 1;
+	}
 
 	ftruncate(t.packet_fd, 0);
 
 	string_enum.level_type = "default";
-	status = protocol_write_string_enum(t.conn, &string_enum);
-	if (status < 0)
+	r = protocol_write_string_enum(t.conn, &string_enum);
+	if (r.err_type != PROTOCOL_ERR_SUCCESS)
 		return 1;
 
 	printf("%s\n", t.packet_file_path);

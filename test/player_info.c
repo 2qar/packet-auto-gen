@@ -23,8 +23,8 @@ int main()
 	if (t.conn == NULL)
 		return 1;
 
-	int status = protocol_write_player_info(t.conn, &player_info);
-	if (status < 0)
+	struct protocol_err r = protocol_write_player_info(t.conn, &player_info);
+	if (r.err_type != PROTOCOL_ERR_SUCCESS)
 		return 1;
 
 	printf("%s\n", t.packet_file_path);

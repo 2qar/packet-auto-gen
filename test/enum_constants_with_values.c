@@ -25,8 +25,8 @@ int main()
 	if (t.conn == NULL)
 		return 1;
 
-	int status = protocol_write_enum_constants_with_values(t.conn, &enum_struct);
-	if (status < 0)
+	struct protocol_err r = protocol_write_enum_constants_with_values(t.conn, &enum_struct);
+	if (r.err_type != PROTOCOL_ERR_SUCCESS)
 		return 1;
 
 	printf("%s\n", t.packet_file_path);

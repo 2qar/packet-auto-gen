@@ -25,6 +25,7 @@ void put_includes()
 	puts("#include <string.h>");
 	puts("#include <stdint.h>");
 	puts("#include <stdio.h>");
+	puts("#include \"protocol_types.h\"");
 	printf("#include \"%s/conn.h\"\n", CHOWDER_DIR);
 	printf("#include \"%s/packet.h\"\n", CHOWDER_DIR);
 }
@@ -264,11 +265,13 @@ static void write_string_enum_check(struct field *enum_field, size_t indent)
 	put_indent(indent);
 	printf("if (%s_values[i_%s] == NULL) {\n", enum_field->name, enum_field->name);
 	put_indent(indent + 1);
-	printf("fprintf(stderr, \"'%%s' isn't a valid value for %s\", ", enum_field->name);
-	put_path(enum_field);
-	printf("%s);\n", enum_field->name);
+	printf("err.err_type = PROTOCOL_ERR_INPUT;\n");
 	put_indent(indent + 1);
-	printf("return -1;\n");
+	printf("err.input_err.err_type = PROTOCOL_INPUT_ERR_BAD_ENUM_CONSTANT;\n");
+	put_indent(indent + 1);
+	printf("err.input_err.field_name = \"%s\";\n", enum_field->name);
+	put_indent(indent + 1);
+	printf("return err;\n");
 	put_indent(indent);
 	printf("}\n");
 }
@@ -329,11 +332,13 @@ static void write_string(struct field *f, size_t indent)
 	put_indent(indent);
 	printf("if (%s_len > %zu) {\n", f->name, f->string_max_len);
 	put_indent(indent + 1);
-	printf("fprintf(stderr, \"'");
-	put_path(f);
-	printf("%s' exceeded max len (%zu)\\n\");\n", f->name, f->string_max_len);
+	printf("err.err_type = PROTOCOL_ERR_INPUT;\n");
 	put_indent(indent + 1);
-	printf("return -1;\n");
+	printf("err.input_err.err_type = PROTOCOL_INPUT_ERR_LEN;\n");
+	put_indent(indent + 1);
+	printf("err.input_err.field_name = \"%s\";\n", f->name);
+	put_indent(indent + 1);
+	printf("return err;\n");
 	put_indent(indent);
 	printf("}\n");
 
@@ -438,11 +443,17 @@ static void write_fields(char *packet_name, struct field *f, size_t indent)
 
 void generate_write_function(int id, char *name, struct field *f)
 {
-	printf("int protocol_write_%s(struct conn *c, struct %s *pack) {\n", name, name);
+	printf("struct protocol_err protocol_write_%s(struct conn *c, struct %s *pack) {\n", name, name);
+	printf("\tstruct protocol_err err = {0};\n");
 	printf("\tstruct packet *p = c->packet;\n");
 	printf("\tmake_packet(p, 0x%x);\n", id);
 	write_fields(name, f, 1);
-	printf("\treturn conn_write_packet(c);\n");
+	printf("\tint n = conn_write_packet(c);\n");
+	printf("\tif (n < 0) {\n");
+	printf("\t\terr.err_type = PROTOCOL_ERR_IO;\n");
+	printf("\t\terr.io_err = n;\n");
+	printf("\t}\n");
+	printf("\treturn err;\n");
 	printf("}\n");
 }
 
@@ -453,9 +464,17 @@ static void read_varint(struct field *f, size_t indent)
 	put_path(f);
 	printf("%s);\n", f->name);
 	put_indent(indent);
-	printf("if (n < 0)\n");
+	printf("if (n < 0) {\n");
 	put_indent(indent + 1);
-	printf("return -1;\n");
+	printf("err.err_type = PROTOCOL_ERR_INPUT;\n");
+	put_indent(indent + 1);
+	printf("err.input_err.err_type = PROTOCOL_INPUT_ERR_VARINT_RANGE;\n");
+	put_indent(indent + 1);
+	printf("err.input_err.field_name = \"%s\";\n", f->name);
+	put_indent(indent + 1);
+	printf("return err;\n");
+	put_indent(indent);
+	printf("}\n");
 }
 
 static void read_uuid(struct field *f, size_t indent)
@@ -463,9 +482,13 @@ static void read_uuid(struct field *f, size_t indent)
 	put_indent(indent);
 	printf("if (!packet_read_bytes(p, 16, (uint8_t *) &");
 	put_path(f);
-	printf("%s))\n", f->name);
+	printf("%s)) {\n", f->name);
 	put_indent(indent + 1);
-	printf("return -1;\n");
+	printf("err.err_type = PROTOCOL_ERR_PACKET_FULL;\n");
+	put_indent(indent + 1);
+	printf("return err;\n");
+	put_indent(indent);
+	printf("}\n");
 }
 
 static void read_string(struct field *f, size_t indent)
@@ -476,11 +499,27 @@ static void read_string(struct field *f, size_t indent)
 	put_path(f);
 	printf("%s = calloc(%s_len, sizeof(char));\n", f->name, f->name);
 	put_indent(indent);
-	printf("if (packet_read_string(p, %s_len, ", f->name);
+	printf("n = packet_read_string(p, %s_len, ", f->name);
 	put_path(f);
-	printf("%s) < 0)\n", f->name);
+	printf("%s);\n", f->name);
+	put_indent(indent);
+	printf("if (n == PACKET_VARINT_TOO_LONG) {\n");
 	put_indent(indent + 1);
-	printf("return -1;\n");
+	printf("err.err_type = PROTOCOL_ERR_INPUT;\n");
+	put_indent(indent + 1);
+	printf("err.input_err.err_type = PROTOCOL_INPUT_ERR_RANGE;\n");
+	put_indent(indent + 1);
+	printf("err.input_err.field_name = \"%s\";\n", f->name);
+	put_indent(indent + 1);
+	printf("return err;\n");
+	put_indent(indent);
+	printf("} else if (n < 0) {\n");
+	put_indent(indent + 1);
+	printf("err.err_type = PROTOCOL_ERR_IO;\n");
+	put_indent(indent + 1);
+	printf("return err;\n");
+	put_indent(indent);
+	printf("}\n");
 }
 
 static void read_field(char *packet_name, struct field *f, size_t indent);
@@ -559,7 +598,7 @@ static void read_field(char *packet_name, struct field *f, size_t indent)
 	}
 	if (packet_type != NULL) {
 		put_indent(indent);
-		printf("if (!packet_read_%s(p, ", packet_type);
+		printf("n = packet_read_%s(p, ", packet_type);
 		switch (f->type) {
 			case FT_BOOL:
 				/* fallthrough */
@@ -569,9 +608,11 @@ static void read_field(char *packet_name, struct field *f, size_t indent)
 		}
 		putchar('&');
 		put_path(f);
-		printf("%s))\n", f->name);
+		printf("%s);\n", f->name);
+		put_indent(indent);
+		printf("if (n < 0)\n");
 		put_indent(indent + 1);
-		printf("return -1;\n");
+		printf("return err;\n");
 	}
 }
 
@@ -585,13 +626,17 @@ static void read_fields(char *packet_name, struct field *f, size_t indent)
 
 void generate_read_function(int id, char *packet_name, struct field *root)
 {
-	printf("int protocol_read_%s(struct conn *c, struct %s *pack) {\n", packet_name, packet_name);
+	printf("struct protocol_err protocol_read_%s(struct conn *c, struct %s *pack) {\n", packet_name, packet_name);
+	printf("\tstruct protocol_err err = {0};\n");
 	printf("\tstruct packet *p = c->packet;\n");
-	printf("\tif (conn_packet_read_header(c) < 0)\n");
-	printf("\t\treturn -1;\n");
+	printf("\tint n = conn_packet_read_header(c);\n");
+	printf("\tif (n < 0) {\n");
+	printf("\t\terr.err_type = PROTOCOL_ERR_IO;\n");
+	printf("\t\terr.io_err = n;\n");
+	printf("\t\treturn err;\n");
+	printf("\t}\n");
 	printf("\tassert(p->packet_id == 0x%x);\n", id);
-	printf("\tint n;\n");
 	read_fields(packet_name, root, 1);
-	printf("\treturn 0;\n");
+	printf("\treturn err;\n");
 	printf("}\n");
 }

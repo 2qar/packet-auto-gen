@@ -29,18 +29,8 @@ fi
 ../pc ../examples/$packet_name.packet > /tmp/$packet_name.h
 
 chowder_dir="$(awk -F'= ' '{print $2}' ../config.mk)"
-gcc -g -I/tmp -I$chowder_dir -o /tmp/$packet_name $packet_name.c bin/*.o -lssl -lcrypto || exit 1
-
-# FIXME: This is a hack, the real fix is to return useful errors
-#        from the protocol functions instead of printing errors
-#        inside of those functions.
-packet_stderr="$(mktemp /tmp/packet-stderr-XXXXXX)"
-packet_file_path="$(/tmp/$packet_name 2> $packet_stderr)"
-if [ $? -ne 0 ]; then
-	cat $packet_stderr 1>&2
-	exit 1
-fi
-
+gcc -g -I/tmp -I../include -I$chowder_dir -o /tmp/$packet_name $packet_name.c bin/*.o -lssl -lcrypto || exit 1
+packet_file_path=$(/tmp/$packet_name || exit 1)
 diff $packet_name.bin $packet_file_path || exit 1
 
 rm $packet_file_path
