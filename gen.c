@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -66,6 +67,16 @@ static void put_indent(size_t indent)
 {
 	for (size_t i = 0; i < indent; ++i)
 		putchar('\t');
+}
+
+static int put_indented(size_t indent, char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	put_indent(indent);
+	int n = vprintf(fmt, ap);
+	va_end(ap);
+	return n;
 }
 
 static void put_upper(char *s)
@@ -244,8 +255,7 @@ static void write_fields(char *packet_name, struct field *, size_t indent);
 
 static void write_string_enum_check(struct field *enum_field, size_t indent)
 {
-	put_indent(indent);
-	printf("static const char *%s_values[] = { ", enum_field->name);
+	put_indented(indent, "static const char *%s_values[] = { ", enum_field->name);
 	struct enum_constant *c = enum_field->enum_data.constants;
 	while (c != NULL) {
 		printf("\"%s\", ", c->name);
@@ -253,33 +263,23 @@ static void write_string_enum_check(struct field *enum_field, size_t indent)
 	}
 	printf("NULL };\n");
 
-	put_indent(indent);
-	printf("size_t i_%s = 0;\n", enum_field->name);
-	put_indent(indent);
-	printf("while (%s_values[i_%s] != NULL && strcmp(%s_values[i_%s], ", enum_field->name, enum_field->name, enum_field->name, enum_field->name);
+	put_indented(indent, "size_t i_%s = 0;\n", enum_field->name);
+	put_indented(indent, "while (%s_values[i_%s] != NULL && strcmp(%s_values[i_%s], ", enum_field->name, enum_field->name, enum_field->name, enum_field->name);
 	put_path(enum_field);
 	printf("%s))\n", enum_field->name);
-	put_indent(indent + 1);
-	printf("++i_%s;\n", enum_field->name);
+	put_indented(indent + 1, "++i_%s;\n", enum_field->name);
 
-	put_indent(indent);
-	printf("if (%s_values[i_%s] == NULL) {\n", enum_field->name, enum_field->name);
-	put_indent(indent + 1);
-	printf("err.err_type = PROTOCOL_ERR_INPUT;\n");
-	put_indent(indent + 1);
-	printf("err.input_err.err_type = PROTOCOL_INPUT_ERR_BAD_ENUM_CONSTANT;\n");
-	put_indent(indent + 1);
-	printf("err.input_err.field_name = \"%s\";\n", enum_field->name);
-	put_indent(indent + 1);
-	printf("return err;\n");
-	put_indent(indent);
-	printf("}\n");
+	put_indented(indent, "if (%s_values[i_%s] == NULL) {\n", enum_field->name, enum_field->name);
+	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_INPUT;\n");
+	put_indented(indent + 1, "err.input_err.err_type = PROTOCOL_INPUT_ERR_BAD_ENUM_CONSTANT;\n");
+	put_indented(indent + 1, "err.input_err.field_name = \"%s\";\n", enum_field->name);
+	put_indented(indent + 1, "return err;\n");
+	put_indented(indent, "}\n");
 }
 
 static void write_struct_array(char *packet_name, struct field *f, size_t indent)
 {
-	put_indent(indent);
-	printf("for (size_t i_%s = 0; i_%s < ", f->name, f->name);
+	put_indented(indent, "for (size_t i_%s = 0; i_%s < ", f->name, f->name);
 	put_path(f);
 	printf("%s_len; ++i_%s) {\n", f->name, f->name);
 	write_fields(packet_name, f->struct_array.fields, indent + 1);
@@ -289,9 +289,8 @@ static void write_struct_array(char *packet_name, struct field *f, size_t indent
 
 static void write_union(char *packet_name, struct field *union_field, size_t indent)
 {
-	put_indent(indent);
 	struct field *enum_field = union_field->union_data.enum_field;
-	printf("switch (");
+	put_indented(indent, "switch (");
 	put_path(enum_field);
 	printf("%s) {\n", enum_field->name);
 	struct field *f = union_field->union_data.fields;
@@ -300,8 +299,7 @@ static void write_union(char *packet_name, struct field *union_field, size_t ind
 	//        the enum's constants_len == union_data.fields len,
 	//        and that the values are 0 -> len-1
 	while (f->type != 0 && c != NULL) {
-		put_indent(indent + 1);
-		printf("case ");
+		put_indented(indent + 1, "case ");
 		// FIXME: re-writing the constants again with the packet name here
 		//        feels wrong, the enum constants should be re-written
 		//        with the packet name as a part of them during parsing
@@ -310,8 +308,7 @@ static void write_union(char *packet_name, struct field *union_field, size_t ind
 		put_enum_constant(packet_name, enum_field->name, c->name);
 		printf(":;\n");
 		write_field(packet_name, f, indent + 2);
-		put_indent(indent + 2);
-		printf("break;\n");
+		put_indented(indent + 2, "break;\n");
 		f = f->next;
 		c = c->next;
 	}
@@ -325,33 +322,24 @@ static void write_union(char *packet_name, struct field *union_field, size_t ind
 
 static void write_string(struct field *f, size_t indent)
 {
-	put_indent(indent);
-	printf("size_t %s_len = strlen(", f->name);
+	put_indented(indent, "size_t %s_len = strlen(", f->name);
 	put_path(f);
 	printf("%s);\n", f->name);
-	put_indent(indent);
-	printf("if (%s_len > %zu) {\n", f->name, f->string_max_len);
-	put_indent(indent + 1);
-	printf("err.err_type = PROTOCOL_ERR_INPUT;\n");
-	put_indent(indent + 1);
-	printf("err.input_err.err_type = PROTOCOL_INPUT_ERR_LEN;\n");
-	put_indent(indent + 1);
-	printf("err.input_err.field_name = \"%s\";\n", f->name);
-	put_indent(indent + 1);
-	printf("return err;\n");
-	put_indent(indent);
-	printf("}\n");
+	put_indented(indent, "if (%s_len > %zu) {\n", f->name, f->string_max_len);
+	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_INPUT;\n");
+	put_indented(indent + 1, "err.input_err.err_type = PROTOCOL_INPUT_ERR_LEN;\n");
+	put_indented(indent + 1, "err.input_err.field_name = \"%s\";\n", f->name);
+	put_indented(indent + 1, "return err;\n");
+	put_indented(indent, "}\n");
 
-	put_indent(indent);
-	printf("packet_write_string(p, %s_len, ", f->name);
+	put_indented(indent, "packet_write_string(p, %s_len, ", f->name);
 	put_path(f);
 	printf("%s);\n", f->name);
 }
 
 static void write_uuid(struct field *f, size_t indent)
 {
-	put_indent(indent);
-	printf("packet_write_bytes(p, 16, ");
+	put_indented(indent, "packet_write_bytes(p, 16, ");
 	put_path(f);
 	printf("%s);\n", f->name);
 }
@@ -385,8 +373,7 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 {
 	char *packet_type = NULL;
 	if (f->condition != NULL) {
-		put_indent(indent);
-		printf("if (");
+		put_indented(indent, "if (");
 		put_condition(f->condition);
 		printf(") {\n");
 		++indent;
@@ -421,15 +408,13 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 			break;
 	}
 	if (packet_type != NULL) {
-		put_indent(indent);
-		printf("packet_write_%s(p, ", packet_type);
+		put_indented(indent, "packet_write_%s(p, ", packet_type);
 		put_path(f);
 		printf("%s);\n", f->name);
 	}
 	if (f->condition != NULL) {
 		--indent;
-		put_indent(indent);
-		printf("}\n");
+		put_indented(indent, "}\n");
 	}
 }
 
@@ -459,94 +444,68 @@ void generate_write_function(int id, char *name, struct field *f)
 
 static void read_varint(struct field *f, size_t indent)
 {
-	put_indent(indent);
-	printf("n = packet_read_varint(p, (int *) &");
+	put_indented(indent, "n = packet_read_varint(p, (int *) &");
 	put_path(f);
 	printf("%s);\n", f->name);
-	put_indent(indent);
-	printf("if (n < 0) {\n");
-	put_indent(indent + 1);
-	printf("err.err_type = PROTOCOL_ERR_INPUT;\n");
-	put_indent(indent + 1);
-	printf("err.input_err.err_type = PROTOCOL_INPUT_ERR_VARINT_RANGE;\n");
-	put_indent(indent + 1);
-	printf("err.input_err.field_name = \"%s\";\n", f->name);
-	put_indent(indent + 1);
-	printf("return err;\n");
-	put_indent(indent);
-	printf("}\n");
+	put_indented(indent, "if (n < 0) {\n");
+	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_INPUT;\n");
+	put_indented(indent + 1, "err.input_err.err_type = PROTOCOL_INPUT_ERR_VARINT_RANGE;\n");
+	put_indented(indent + 1, "err.input_err.field_name = \"%s\";\n", f->name);
+	put_indented(indent + 1, "return err;\n");
+	put_indented(indent, "}\n");
 }
 
 static void read_uuid(struct field *f, size_t indent)
 {
-	put_indent(indent);
-	printf("if (!packet_read_bytes(p, 16, (uint8_t *) &");
+	put_indented(indent, "if (!packet_read_bytes(p, 16, (uint8_t *) &");
 	put_path(f);
 	printf("%s)) {\n", f->name);
-	put_indent(indent + 1);
-	printf("err.err_type = PROTOCOL_ERR_PACKET_FULL;\n");
-	put_indent(indent + 1);
-	printf("return err;\n");
-	put_indent(indent);
-	printf("}\n");
+	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_PACKET_FULL;\n");
+	put_indented(indent + 1, "return err;\n");
+	put_indented(indent, "}\n");
 }
 
 static void read_string(struct field *f, size_t indent)
 {
-	put_indent(indent);
-	printf("size_t %s_len = %zu;\n", f->name, f->string_max_len + 1);
+	put_indented(indent, "size_t %s_len = %zu;\n", f->name, f->string_max_len + 1);
 	put_indent(indent);
 	put_path(f);
 	printf("%s = calloc(%s_len, sizeof(char));\n", f->name, f->name);
-	put_indent(indent);
-	printf("n = packet_read_string(p, %s_len, ", f->name);
+	put_indented(indent, "n = packet_read_string(p, %s_len, ", f->name);
 	put_path(f);
 	printf("%s);\n", f->name);
-	put_indent(indent);
-	printf("if (n == PACKET_VARINT_TOO_LONG) {\n");
-	put_indent(indent + 1);
-	printf("err.err_type = PROTOCOL_ERR_INPUT;\n");
-	put_indent(indent + 1);
-	printf("err.input_err.err_type = PROTOCOL_INPUT_ERR_RANGE;\n");
-	put_indent(indent + 1);
-	printf("err.input_err.field_name = \"%s\";\n", f->name);
-	put_indent(indent + 1);
-	printf("return err;\n");
-	put_indent(indent);
-	printf("} else if (n < 0) {\n");
-	put_indent(indent + 1);
-	printf("err.err_type = PROTOCOL_ERR_IO;\n");
-	put_indent(indent + 1);
-	printf("return err;\n");
-	put_indent(indent);
-	printf("}\n");
+	put_indented(indent, "if (n == PACKET_VARINT_TOO_LONG) {\n");
+	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_INPUT;\n");
+	put_indented(indent + 1, "err.input_err.err_type = PROTOCOL_INPUT_ERR_RANGE;\n");
+	put_indented(indent + 1, "err.input_err.field_name = \"%s\";\n", f->name);
+	put_indented(indent + 1, "return err;\n");
+	put_indented(indent, "} else if (n < 0) {\n");
+	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_IO;\n");
+	put_indented(indent + 1, "return err;\n");
+	put_indented(indent, "}\n");
 }
 
 static void read_field(char *packet_name, struct field *f, size_t indent);
 
 static void read_union(char *packet_name, struct field *union_field, size_t indent)
 {
-	put_indent(indent);
-	printf("switch (");
+	put_indented(indent, "switch (");
 	put_path(union_field->union_data.enum_field);
 	printf("%s) {\n", union_field->union_data.enum_field->name);
 
 	struct enum_constant *c = union_field->union_data.enum_field->enum_data.constants;
 	struct field *f = union_field->union_data.fields;
 	while (c != NULL && f->type) {
-		put_indent(indent + 1);
-		printf("case ");
+		put_indented(indent + 1, "case ");
 		put_enum_constant(packet_name, union_field->union_data.enum_field->name, c->name);
 		printf(":;\n");
 		read_field(packet_name, f, indent + 2);
-		put_indent(indent + 2);
-		printf("break;\n");
+		put_indented(indent + 2, "break;\n");
 
 		c = c->next;
 		f = f->next;
 	}
-	put_indent(indent);
-	printf("}\n");
+	put_indented(indent, "}\n");
 }
 
 static void read_fields(char *packet_name, struct field *f, size_t indent);
@@ -558,13 +517,11 @@ static void read_struct_array(char *packet_name, struct field *f, size_t indent)
 	printf("%s = calloc(", f->name);
 	put_path(f);
 	printf("%s_len, sizeof(struct %s_%s));\n", f->name, packet_name, f->struct_array.struct_name);
-	put_indent(indent);
-	printf("for (size_t i_%s = 0; i_%s < ", f->name,  f->name);
+	put_indented(indent, "for (size_t i_%s = 0; i_%s < ", f->name,  f->name);
 	put_path(f);
 	printf("%s_len; ++i_%s) {\n", f->name, f->name);
 	read_fields(packet_name, f->struct_array.fields, indent + 1);
-	put_indent(indent);
-	printf("}\n");
+	put_indented(indent, "}\n");
 }
 
 static void read_field(char *packet_name, struct field *f, size_t indent)
@@ -597,8 +554,7 @@ static void read_field(char *packet_name, struct field *f, size_t indent)
 			break;
 	}
 	if (packet_type != NULL) {
-		put_indent(indent);
-		printf("n = packet_read_%s(p, ", packet_type);
+		put_indented(indent, "n = packet_read_%s(p, ", packet_type);
 		switch (f->type) {
 			case FT_BOOL:
 				/* fallthrough */
@@ -609,10 +565,8 @@ static void read_field(char *packet_name, struct field *f, size_t indent)
 		putchar('&');
 		put_path(f);
 		printf("%s);\n", f->name);
-		put_indent(indent);
-		printf("if (n < 0)\n");
-		put_indent(indent + 1);
-		printf("return err;\n");
+		put_indented(indent, "if (n < 0)\n");
+		put_indented(indent + 1, "return err;\n");
 	}
 }
 
