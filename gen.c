@@ -254,7 +254,7 @@ static void put_path(struct field *f)
 #define put_input_error(indent, input_err, field) \
 	put_indented(indent, "err.err_type = PROTOCOL_ERR_INPUT;\n"); \
 	put_indented(indent, "err.input_err.err_type = %s;\n", #input_err); \
-	put_indented(indent, "err.input_err.field_name = \"%s\"\n;", field->name); \
+	put_indented(indent, "err.input_err.field_name = \"%s\";\n", field->name); \
 	put_indented(indent, "return err;\n"); \
 
 static void write_field(char *packet_name, struct field *, size_t indent);
