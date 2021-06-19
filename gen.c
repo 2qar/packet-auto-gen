@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "parser.h"
+#include "protocol_types.h"
 
 void put_id(const char *packet_filename, int id)
 {
@@ -250,6 +251,12 @@ static void put_path(struct field *f)
 	put_path_iter(f->parent);
 }
 
+#define put_input_error(indent, input_err, field) \
+	put_indented(indent, "err.err_type = PROTOCOL_ERR_INPUT;\n"); \
+	put_indented(indent, "err.input_err.err_type = %s;\n", #input_err); \
+	put_indented(indent, "err.input_err.field_name = \"%s\"\n;", field->name); \
+	put_indented(indent, "return err;\n"); \
+
 static void write_field(char *packet_name, struct field *, size_t indent);
 static void write_fields(char *packet_name, struct field *, size_t indent);
 
@@ -270,10 +277,7 @@ static void write_string_enum_check(struct field *enum_field, size_t indent)
 	put_indented(indent + 1, "++i_%s;\n", enum_field->name);
 
 	put_indented(indent, "if (%s_values[i_%s] == NULL) {\n", enum_field->name, enum_field->name);
-	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_INPUT;\n");
-	put_indented(indent + 1, "err.input_err.err_type = PROTOCOL_INPUT_ERR_BAD_ENUM_CONSTANT;\n");
-	put_indented(indent + 1, "err.input_err.field_name = \"%s\";\n", enum_field->name);
-	put_indented(indent + 1, "return err;\n");
+	put_input_error(indent + 1, PROTOCOL_INPUT_ERR_BAD_ENUM_CONSTANT, enum_field);
 	put_indented(indent, "}\n");
 }
 
@@ -326,10 +330,9 @@ static void write_string(struct field *f, size_t indent)
 	put_path(f);
 	printf("%s);\n", f->name);
 	put_indented(indent, "if (%s_len > %zu) {\n", f->name, f->string_max_len);
-	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_INPUT;\n");
-	put_indented(indent + 1, "err.input_err.err_type = PROTOCOL_INPUT_ERR_LEN;\n");
-	put_indented(indent + 1, "err.input_err.field_name = \"%s\";\n", f->name);
-	put_indented(indent + 1, "return err;\n");
+	put_indented(indent + 1, "err.input_err.len.max = %zu;\n", f->string_max_len);
+	put_indented(indent + 1, "err.input_err.len.value = %s_len;\n", f->name);
+	put_input_error(indent + 1, PROTOCOL_INPUT_ERR_LEN, f);
 	put_indented(indent, "}\n");
 
 	put_indented(indent, "packet_write_string(p, %s_len, ", f->name);
@@ -448,10 +451,7 @@ static void read_varint(struct field *f, size_t indent)
 	put_path(f);
 	printf("%s);\n", f->name);
 	put_indented(indent, "if (n < 0) {\n");
-	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_INPUT;\n");
-	put_indented(indent + 1, "err.input_err.err_type = PROTOCOL_INPUT_ERR_VARINT_RANGE;\n");
-	put_indented(indent + 1, "err.input_err.field_name = \"%s\";\n", f->name);
-	put_indented(indent + 1, "return err;\n");
+	put_input_error(indent + 1, PROTOCOL_INPUT_ERR_VARINT_RANGE, f);
 	put_indented(indent, "}\n");
 }
 
@@ -475,10 +475,7 @@ static void read_string(struct field *f, size_t indent)
 	put_path(f);
 	printf("%s);\n", f->name);
 	put_indented(indent, "if (n == PACKET_VARINT_TOO_LONG) {\n");
-	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_INPUT;\n");
-	put_indented(indent + 1, "err.input_err.err_type = PROTOCOL_INPUT_ERR_RANGE;\n");
-	put_indented(indent + 1, "err.input_err.field_name = \"%s\";\n", f->name);
-	put_indented(indent + 1, "return err;\n");
+	put_input_error(indent + 1, PROTOCOL_INPUT_ERR_VARINT_RANGE, f);
 	put_indented(indent, "} else if (n < 0) {\n");
 	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_IO;\n");
 	put_indented(indent + 1, "return err;\n");

@@ -1,7 +1,7 @@
 include config.mk
 
 CC=gcc
-CPPFLAGS=-DCHOWDER_DIR=\"$(CHOWDER_DIR)\"
+CPPFLAGS=-I`pwd`/include -DCHOWDER_DIR=\"$(CHOWDER_DIR)\"
 CFLAGS=-g -Wall -Werror -Wextra -pedantic
 TARGET=pc
 
