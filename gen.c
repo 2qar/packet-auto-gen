@@ -450,8 +450,11 @@ static void read_varint(struct field *f, size_t indent)
 	put_indented(indent, "n = packet_read_varint(p, (int *) &");
 	put_path(f);
 	printf("%s);\n", f->name);
-	put_indented(indent, "if (n < 0) {\n");
+	put_indented(indent, "if (n == PACKET_VARINT_TOO_LONG) {\n");
 	put_input_error(indent + 1, PROTOCOL_INPUT_ERR_VARINT_RANGE, f);
+	put_indented(indent, "} else if (n == PACKET_TOO_BIG) {\n");
+	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_PACKET_FULL;\n");
+	put_indented(indent + 1, "return err;\n");
 	put_indented(indent, "}\n");
 }
 
