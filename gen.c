@@ -335,14 +335,14 @@ static void write_string(struct field *f, size_t indent)
 	put_input_error(indent + 1, PROTOCOL_INPUT_ERR_LEN, f);
 	put_indented(indent, "}\n");
 
-	put_indented(indent, "packet_write_string(p, %s_len, ", f->name);
+	put_indented(indent, "n = packet_write_string(p, %s_len, ", f->name);
 	put_path(f);
 	printf("%s);\n", f->name);
 }
 
 static void write_uuid(struct field *f, size_t indent)
 {
-	put_indented(indent, "packet_write_bytes(p, 16, ");
+	put_indented(indent, "n = packet_write_bytes(p, 16, ");
 	put_path(f);
 	printf("%s);\n", f->name);
 }
@@ -381,6 +381,7 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 		printf(") {\n");
 		++indent;
 	}
+	bool check_result = false;
 	switch (f->type) {
 		case FT_ENUM:
 			if (f->enum_data.type_field->type == FT_STRING)
@@ -400,20 +401,27 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 		case FT_IDENTIFIER:
 		case FT_CHAT:
 			write_string(f, indent);
+			check_result = true;
 			break;
 		case FT_UUID:
 			write_uuid(f, indent);
+			check_result = true;
 			break;
 		case FT_EMPTY:
 			break;
 		default:
 			packet_type = ftype_to_packet_type(f->type);
+			check_result = true;
 			break;
 	}
 	if (packet_type != NULL) {
-		put_indented(indent, "packet_write_%s(p, ", packet_type);
+		put_indented(indent, "n = packet_write_%s(p, ", packet_type);
 		put_path(f);
 		printf("%s);\n", f->name);
+	}
+	if (check_result) {
+		put_indented(indent, "if (n < 0)\n");
+		put_indented(indent + 1, "goto err;\n");
 	}
 	if (f->condition != NULL) {
 		--indent;
@@ -435,12 +443,19 @@ void generate_write_function(int id, char *name, struct field *f)
 	printf("\tstruct protocol_err err = {0};\n");
 	printf("\tstruct packet *p = c->packet;\n");
 	printf("\tmake_packet(p, 0x%x);\n", id);
+	printf("\tint n;\n");
 	write_fields(name, f, 1);
-	printf("\tint n = conn_write_packet(c);\n");
+	printf("\tn = conn_write_packet(c);\n");
 	printf("\tif (n < 0) {\n");
 	printf("\t\terr.err_type = PROTOCOL_ERR_IO;\n");
 	printf("\t\terr.io_err = n;\n");
 	printf("\t}\n");
+	printf("\treturn err;\n");
+	printf("err:\n");
+	printf("\tif (n == PACKET_TOO_BIG)\n");
+	printf("\t\terr.err_type = PROTOCOL_ERR_PACKET_FULL;\n");
+	printf("\telse if (n == PACKET_REALLOC_FAILED)\n");
+	printf("\t\terr.err_type = PROTOCOL_ERR_PACKET_FULL;\n");
 	printf("\treturn err;\n");
 	printf("}\n");
 }
