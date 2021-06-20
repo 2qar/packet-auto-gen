@@ -15,7 +15,7 @@ int main()
 		return 1;
 
 	string_enum.level_type = "bad_type";
-	struct protocol_err r = protocol_write_string_enum(t.conn, &string_enum);
+	struct protocol_err r = protocol_write_string_enum(t.conn->packet, &string_enum);
 	if (r.err_type != PROTOCOL_ERR_INPUT ||
 			r.input_err.err_type != PROTOCOL_INPUT_ERR_BAD_ENUM_CONSTANT ||
 			strcmp(r.input_err.field_name, "level_type")) {
@@ -28,8 +28,10 @@ int main()
 	ftruncate(t.packet_fd, 0);
 
 	string_enum.level_type = "default";
-	r = protocol_write_string_enum(t.conn, &string_enum);
+	r = protocol_write_string_enum(t.conn->packet, &string_enum);
 	if (r.err_type != PROTOCOL_ERR_SUCCESS)
+		return 1;
+	else if (!conn_write_packet(t.conn))
 		return 1;
 
 	printf("%s\n", t.packet_file_path);

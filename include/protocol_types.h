@@ -3,9 +3,8 @@
 
 enum protocol_err_type {
 	PROTOCOL_ERR_SUCCESS,
-	PROTOCOL_ERR_IO,
+	PROTOCOL_ERR_PACKET,
 	PROTOCOL_ERR_INPUT,
-	PROTOCOL_ERR_PACKET_FULL,
 };
 
 enum protocol_input_err_type {
@@ -18,7 +17,7 @@ enum protocol_input_err_type {
 struct protocol_err {
 	enum protocol_err_type err_type;
 	union {
-		int io_err;
+		int packet_err;
 		struct {
 			const char *field_name;
 			enum protocol_input_err_type err_type;
@@ -33,6 +32,7 @@ struct protocol_err {
 					size_t value;
 				} len;
 			};
+			char *enum_constant;
 		} input_err;
 	};
 };
