@@ -286,7 +286,7 @@ static void write_string_enum_check(struct field *enum_field, size_t indent)
 
 static void write_struct_array(char *packet_name, struct field *f, size_t indent)
 {
-	put_indented(indent, "for (size_t i_%s = 0; i_%s < ", f->name, f->name);
+	put_indented(indent, "for (%s i_%s = 0; i_%s < ", ftype_to_ctype(f->struct_array.len_field), f->name, f->name);
 	put_path(f);
 	printf("%s_len; ++i_%s) {\n", f->name, f->name);
 	write_fields(packet_name, f->struct_array.fields, indent + 1);
@@ -530,7 +530,7 @@ static void read_struct_array(char *packet_name, struct field *f, size_t indent)
 	printf("%s = calloc(", f->name);
 	put_path(f);
 	printf("%s_len, sizeof(struct %s_%s));\n", f->name, packet_name, f->struct_array.struct_name);
-	put_indented(indent, "for (size_t i_%s = 0; i_%s < ", f->name,  f->name);
+	put_indented(indent, "for (%s i_%s = 0; i_%s < ", ftype_to_ctype(f->struct_array.len_field), f->name,  f->name);
 	put_path(f);
 	printf("%s_len; ++i_%s) {\n", f->name, f->name);
 	read_fields(packet_name, f->struct_array.fields, indent + 1);

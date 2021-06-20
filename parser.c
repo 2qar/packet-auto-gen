@@ -520,6 +520,19 @@ static bool resolve_condition_name_refs(struct field *root, struct condition *co
 	return err;
 }
 
+static struct field *find_len_field(struct field *root, struct field *array_field)
+{
+	size_t name_len = strlen(array_field->name) + 5;
+	char *name = calloc(name_len, sizeof(char));
+	snprintf(name, name_len, "%s_len", array_field->name);
+	struct field *len_field = find_field(root, FT_ANY, name);
+	free(name);
+	if (len_field == NULL)
+		fprintf(stderr, "array '%s' has no given length and '%s_len' doesn't exist, gimme one\n",
+				array_field->name, array_field->name);
+	return len_field;
+}
+
 static bool resolve_field_name_refs_iter(struct field *root, struct field *f)
 {
 	bool err = false;
@@ -529,11 +542,22 @@ static bool resolve_field_name_refs_iter(struct field *root, struct field *f)
 		}
 
 		switch (f->type) {
+			case FT_ARRAY:
+				if (!f->array.has_len) {
+					f->array.len_field = find_len_field(root, f);
+					if (f->array.len_field == NULL)
+						err = true;
+				}
+				break;
 			case FT_STRUCT:
 				err = resolve_field_name_refs_iter(root, f->struct_fields);
 				break;
 			case FT_STRUCT_ARRAY:
-				err = resolve_field_name_refs_iter(root, f->struct_array.fields);
+				f->struct_array.len_field = find_len_field(root, f);
+				if (f->struct_array.len_field == NULL)
+					err = true;
+				else
+					err = resolve_field_name_refs_iter(root, f->struct_array.fields);
 				break;
 			case FT_UNION:;
 				struct field *partial = f->union_data.enum_field;

@@ -78,11 +78,16 @@ struct field {
 		struct field *struct_fields;
 		struct {
 			uint32_t type;
-			size_t array_len;
+			bool has_len;
+			union {
+				size_t array_len;
+				struct field *len_field;
+			};
 		} array;
 		struct {
 			char *struct_name;
 			struct field *fields;
+			struct field *len_field;
 		} struct_array;
 	};
 	struct field *parent;
