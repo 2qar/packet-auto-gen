@@ -22,7 +22,7 @@ const uint32_t valid_types[] = {
 	FT_VARLONG,
 	FT_ENTITY_METADATA,
 	FT_SLOT,
-	FT_NBT_TAG,
+	FT_NBT,
 	FT_POSITION,
 	FT_ANGLE,
 	FT_UUID,

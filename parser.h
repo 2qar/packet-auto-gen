@@ -21,7 +21,7 @@
 #define FT_VARLONG 0xda7b82f8
 #define FT_ENTITY_METADATA 0xd7d24cb7
 #define FT_SLOT 0xf0c19391
-#define FT_NBT_TAG 0x9da906ad
+#define FT_NBT 0xa9d26e07
 #define FT_POSITION 0xe27f342a
 #define FT_ANGLE 0x39c493b8
 #define FT_UUID 0x257b8832
