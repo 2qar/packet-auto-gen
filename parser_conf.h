@@ -28,6 +28,7 @@ const uint32_t valid_types[] = {
 	FT_UUID,
 	FT_ARRAY,
 	FT_ENUM,
+	FT_BYTE_ARRAY,
 	FT_UNION,
 	FT_STRUCT,
 	FT_EMPTY,
@@ -43,6 +44,7 @@ const uint32_t valid_enum_types[] = {
 
 const uint32_t valid_types_with_args[] = {
 	FT_ARRAY,
+	FT_BYTE_ARRAY,
 	FT_ENUM,
 	FT_STRING,
 	FT_UNION,

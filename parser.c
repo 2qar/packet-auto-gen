@@ -101,6 +101,23 @@ static struct token *read_type_args(struct token *type, struct field *field)
 		case FT_ARRAY:
 			arg_end = read_array_args(arg_type, arg, field);
 			break;
+		case FT_BYTE_ARRAY:;
+			if (valid_type(arg_type, valid_types)) {
+				field->byte_array.has_type = true;
+				field->byte_array.type_field = calloc(1, sizeof(struct field));
+				field->byte_array.type_field->type = arg_type;
+				if (valid_type(arg_type, valid_types_with_args)) {
+					arg_end = read_type_args(arg, field->byte_array.type_field);
+					if (arg_end != NULL) {
+						arg_end = arg_end->next;
+					}
+				} else {
+					arg_end = arg->next->next;
+				}
+			} else if (sscanf(arg->start, "%zu", &field->byte_array.len) != 1) {
+				perr("expected a length or type as an arg to '", type, "'\n");
+			}
+			break;
 		case FT_UNION:;
 			size_t name_len = arg->len + 1;
 			char *name = calloc(name_len, sizeof(char));
@@ -117,6 +134,9 @@ static struct token *read_type_args(struct token *type, struct field *field)
 			} else {
 				arg_end = arg->next->next;
 			}
+			break;
+		default:
+			perr("'", type, "' is configured to have args, but they're not handled. FIXME\n");
 			break;
 	}
 	return arg_end;
@@ -386,6 +406,9 @@ static struct token *read_field_body(struct token *open_brace, struct field *f)
 {
 	struct token *t;
 	switch (f->type) {
+		case FT_BYTE_ARRAY:
+			t = read_field_body(open_brace, f->byte_array.type_field);
+			break;
 		case FT_ENUM:
 			t = parse_enum(open_brace->next->next, f);
 			break;
@@ -421,7 +444,12 @@ struct token *parse_field(struct token *t, struct field *f)
 		return NULL;
 
 	bool has_body = token_equals(t, "{");
-	bool should_have_body = type_has_body(f->type);
+	bool should_have_body = false;
+	if (f->type == FT_BYTE_ARRAY && f->byte_array.has_type)
+		should_have_body = type_has_body(f->byte_array.type_field->type);
+	else
+		should_have_body = type_has_body(f->type);
+
 	if (has_body && should_have_body) {
 		t = read_field_body(t, f);
 	} else if (!has_body && should_have_body) {
@@ -595,6 +623,10 @@ void free_fields(struct field *f)
 			free(f->condition->op);
 
 		switch (f->type) {
+			case FT_BYTE_ARRAY:
+				if (f->byte_array.has_type)
+					free(f->byte_array.type_field);
+				break;
 			case FT_ENUM:
 				free(f->enum_data.type_field);
 				struct enum_constant *c = f->enum_data.constants;

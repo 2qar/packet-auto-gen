@@ -28,7 +28,7 @@
 //#define FT_OPTIONAL 15
 #define FT_ARRAY 0x16c8fcc6
 #define FT_ENUM 0xe84dda20
-#define FT_BYTE_ARRAY 16
+#define FT_BYTE_ARRAY 0xf930eb1c
 
 // These types aren't part of the protocol, but I need them for generating C structs
 // and generating read/write code
@@ -89,6 +89,13 @@ struct field {
 			struct field *fields;
 			struct field *len_field;
 		} struct_array;
+		struct {
+			bool has_type;
+			union {
+				size_t len;
+				struct field *type_field;
+			};
+		} byte_array;
 	};
 	struct field *parent;
 	struct field *next;
