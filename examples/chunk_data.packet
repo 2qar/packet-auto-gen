@@ -1,0 +1,16 @@
+id = 0x22
+
+Int chunk_x
+Int chunk_z
+Bool full_chunk
+VarInt primary_bit_mask
+NBT heightmaps
+Array(Int) biomes (if full_chunk)
+ByteArray(Array(struct chunk_section)) data {
+	Short block_count
+	UByte bits_per_block
+	VarInt palette_len
+	Array(VarInt) palette
+	VarInt data_array_len
+	Array(Long) data_array
+}
