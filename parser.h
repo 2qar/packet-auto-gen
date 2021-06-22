@@ -77,7 +77,7 @@ struct field {
 		} union_data;
 		struct field *struct_fields;
 		struct {
-			uint32_t type;
+			struct field *type_field;
 			bool has_len;
 			union {
 				size_t array_len;
@@ -101,11 +101,28 @@ struct field {
 	struct field *next;
 };
 
+struct arg {
+	enum {
+		ARG_TYPE_NUM,
+		ARG_TYPE_FIELD_TYPE,
+		ARG_TYPE_FIELD_REF,
+		ARG_TYPE_STRUCT,
+	} type;
+	struct token *start_token;
+	union {
+		size_t num;
+		struct field *field;
+		struct token *struct_name;
+	};
+	struct arg *next;
+};
+
 struct token *parse_field(struct token *, struct field *);
 
 void create_parent_links(struct field *root);
 bool resolve_field_name_refs(struct field *root);
 
 void free_fields(struct field *);
+void free_args(struct arg *);
 
 #endif // PARSER_H

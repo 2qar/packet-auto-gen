@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -31,115 +32,197 @@ static bool valid_type(uint32_t t, const uint32_t valid[])
 	return valid[i] != 0;
 }
 
-static struct token *read_type_args(struct token *, struct field *);
-
-static struct token *read_enum_args(uint32_t arg_type, struct token *arg, struct field *field)
+static bool read_enum_args(struct arg *args, struct field *field)
 {
-	if (!valid_type(arg_type, valid_enum_types)) {
-		perr("invalid enum type '", arg, "'\n");
-		return NULL;
+	assert(args != NULL);
+	if (args->type != ARG_TYPE_FIELD_TYPE) {
+		perr("expected an encoding type, got '", args->start_token, "'\n");
+		return true;
+	} else if (args->next != NULL) {
+		perr("unexpected extra argument: '", args->next->start_token, "'\n");
+		return true;
 	}
 
-	field->enum_data.type_field = calloc(1, sizeof(struct field));
-	field->enum_data.type_field->type = arg_type;
-	if (valid_type(arg_type, valid_types_with_args)) {
-		struct token *closing_paren = read_type_args(arg, field->enum_data.type_field);
-		if (closing_paren != NULL)
-			return closing_paren->next;
-		else
-			return closing_paren;
+	field->enum_data.type_field = args->field;
+	return false;
+}
+
+static bool read_array_args(struct arg *args, struct field *field)
+{
+	assert(args != NULL);
+	if (args->type != ARG_TYPE_FIELD_TYPE) {
+		perr("expected a type, got '", args->start_token, "'\n");
+		return true;
+	}
+
+	if (args->field->type == FT_STRUCT) {
+		field->type = FT_STRUCT_ARRAY;
+		struct token *struct_name_tok = args->start_token->next;
+		size_t name_len = struct_name_tok->len + 1;
+		field->struct_array.struct_name = calloc(name_len, sizeof(char));
+		snprintf(field->struct_array.struct_name, name_len, "%s", struct_name_tok->start);
+		free(args->field);
 	} else {
-		return arg->next->next;
+		field->array.type_field = args->field;
+	}
+
+	if (args->next != NULL && args->next->type == ARG_TYPE_NUM) {
+		field->array.has_len = true;
+		field->array.array_len = args->next->num;
+	}
+	return false;
+}
+
+static bool read_byte_array_args(struct arg *args, struct field *field)
+{
+	assert(args != NULL);
+	if (args->type == ARG_TYPE_NUM) {
+		field->byte_array.len = args->num;
+	} else if (args->type == ARG_TYPE_FIELD_TYPE) {
+		field->byte_array.has_type = true;
+		field->byte_array.type_field = args->field;
+	} else {
+		perr("expected a number or field type, got '", args->start_token, "'\n");
+		return true;
+	}
+	return false;
+}
+
+static bool read_union_args(struct arg *args, struct field *field)
+{
+	assert(args != NULL);
+	if (args->type != ARG_TYPE_FIELD_REF) {
+		perr("expected a field name, got '", args->start_token, "'\n");
+		return true;
+	}
+	field->union_data.enum_field = args->field;
+	return false;
+}
+
+static bool read_string_args(struct arg *args, struct field *field)
+{
+	assert(args != NULL);
+	if (args->type != ARG_TYPE_NUM) {
+		perr("expected a length, got '", args->start_token, "'\n");
+		return true;
+	}
+	field->string_max_len = args->num;
+	return false;
+}
+
+static struct token *seek_next_arg_sep(struct token *arg_start)
+{
+	struct token *t = arg_start;
+	int paren_level = 1;
+	while (t != NULL && paren_level > 0 && !token_equals(t, ",")) {
+		if (token_equals(t, "("))
+			++paren_level;
+		else if (token_equals(t, ")"))
+			--paren_level;
+		if (paren_level > 0)
+			t = t->next;
+	}
+	return t;
+}
+
+static struct token *read_type_args(struct token *, struct field *);
+
+static void parse_arg(struct token *arg_start, struct arg *arg)
+{
+	uint32_t type;
+	arg->start_token = arg_start;
+	if (sscanf(arg_start->start, "%zu", &arg->num) == 1) {
+		arg->type = ARG_TYPE_NUM;
+	} else if (valid_type((type = str_fnv1a(arg_start->start, arg_start->len)), valid_types)) {
+		arg->type = ARG_TYPE_FIELD_TYPE;
+		arg->field = calloc(1, sizeof(struct field));
+		arg->field->type = type;
+		if (valid_type(type, valid_types_with_args))
+			read_type_args(arg_start, arg->field);
+	} else if (token_equals(arg_start, "struct")) {
+		arg->type = ARG_TYPE_STRUCT;
+		arg->struct_name = arg_start->next;
+	} else {
+		arg->type = ARG_TYPE_FIELD_REF;
+		arg->field = calloc(1, sizeof(struct field));
+		size_t name_len = arg_start->len + 1;
+		arg->field->name = calloc(name_len, sizeof(char));
+		snprintf(arg->field->name, name_len, "%s", arg_start->start);
 	}
 }
 
-static struct token *read_array_args(uint32_t arg_type, struct token *arg, struct field *field)
+static struct arg *parse_args(struct token *open_paren)
 {
-	struct token *struct_name_tok = arg->next;
-	if (!valid_type(arg_type, valid_types)) {
-		perr("invalid array type '", arg, "'\n");
+	assert(token_equals(open_paren, "("));
+	if (token_equals(open_paren->next, ")"))
 		return NULL;
-	} else if (arg_type == FT_STRUCT && struct_name_tok->is_sep) {
-		perr("expected a struct name, got '", arg, "'\n");
-		return NULL;
-	} else if (arg_type == FT_STRUCT) {
-		field->type = FT_STRUCT_ARRAY;
-		size_t struct_name_len = arg->next->len + 1;
-		char *struct_name = calloc(struct_name_len, sizeof(char));
-		snprintf(struct_name, struct_name_len, "%s", arg->next->start);
-		field->struct_array.struct_name = struct_name;
-		return struct_name_tok->next->next;
-	} else {
-		// TODO: support types w/ args
-		field->array.type = arg_type;
-		return arg->next->next;
+
+	struct arg *args = calloc(1, sizeof(struct arg));
+	struct arg *arg = args;
+	struct token *t = open_paren->next;
+	struct token *next_sep = seek_next_arg_sep(t);
+	while (!token_equals(next_sep, ")")) {
+		parse_arg(t, arg);
+		t = next_sep->next;
+		next_sep = seek_next_arg_sep(t);
+
+		arg->next = calloc(1, sizeof(struct arg));
+		arg = arg->next;
 	}
+	parse_arg(t, arg);
+	return args;
 }
 
 static struct token *read_type_args(struct token *type, struct field *field)
 {
-	struct token *arg_start = type->next;
-	if (!token_equals(arg_start, "(")) {
-		fprintf(stderr, "unexpected token '%c' when parsing '", arg_start->start[0]);
+	struct token *open_paren = type->next;
+	if (!token_equals(open_paren, "(")) {
+		fprintf(stderr, "unexpected token '%c' when parsing '", open_paren->start[0]);
 		put_token(stderr, type);
 		fprintf(stderr, "' args\n");
 		return NULL;
 	}
-	// FIXME: support multiple arguments + types w/ args as arguments
-	struct token *arg = arg_start->next;
-	if (arg->is_sep) {
-		perr("expected identifier, got '", arg, "'\n");
+	struct arg *args = parse_args(open_paren);
+	if (args == NULL) {
+		perr("expected args for '", type, "'\n");
+		free_args(args);
 		return NULL;
 	}
-
-	uint32_t arg_type = str_fnv1a(arg->start, arg->len);
-	struct token *arg_end = NULL;
+	bool err = false;
 	switch (field->type) {
 		case FT_ENUM:
-			arg_end = read_enum_args(arg_type, arg, field);
+			err = read_enum_args(args, field);
 			break;
 		case FT_ARRAY:
-			arg_end = read_array_args(arg_type, arg, field);
+			err = read_array_args(args, field);
 			break;
-		case FT_BYTE_ARRAY:;
-			if (valid_type(arg_type, valid_types)) {
-				field->byte_array.has_type = true;
-				field->byte_array.type_field = calloc(1, sizeof(struct field));
-				field->byte_array.type_field->type = arg_type;
-				if (valid_type(arg_type, valid_types_with_args)) {
-					arg_end = read_type_args(arg, field->byte_array.type_field);
-					if (arg_end != NULL) {
-						arg_end = arg_end->next;
-					}
-				} else {
-					arg_end = arg->next->next;
-				}
-			} else if (sscanf(arg->start, "%zu", &field->byte_array.len) != 1) {
-				perr("expected a length or type as an arg to '", type, "'\n");
-			}
+		case FT_BYTE_ARRAY:
+			err = read_byte_array_args(args, field);
 			break;
-		case FT_UNION:;
-			size_t name_len = arg->len + 1;
-			char *name = calloc(name_len, sizeof(char));
-			snprintf(name, name_len, "%s", arg->start);
-			struct field *enum_field = calloc(1, sizeof(struct field));
-			enum_field->name = name;
-			field->union_data.enum_field = enum_field;
-
-			arg_end = arg->next->next;
+		case FT_UNION:
+			err = read_union_args(args, field);
 			break;
 		case FT_STRING:
-			if (sscanf(arg->start, "%zu", &field->string_max_len) != 1) {
-				perr("invalid string length '", arg, "'\n");
-			} else {
-				arg_end = arg->next->next;
-			}
+			err = read_string_args(args, field);
 			break;
 		default:
 			perr("'", type, "' is configured to have args, but they're not handled. FIXME\n");
 			break;
 	}
-	return arg_end;
+
+	if (err) {
+		free_args(args);
+		return NULL;
+	} else if (args == NULL) {
+		return open_paren->next->next;
+	} else {
+		struct arg *last_arg = args;
+		while (last_arg->next != NULL)
+			last_arg = last_arg->next;
+		struct token *closing_paren = seek_next_arg_sep(last_arg->start_token);
+		free_args(args);
+		return closing_paren->next;
+	}
 }
 
 static struct token *read_field_type(struct token *type, struct field *field)
@@ -623,9 +706,13 @@ void free_fields(struct field *f)
 			free(f->condition->op);
 
 		switch (f->type) {
+			case FT_ARRAY:
+				free(f->array.type_field);
+				break;
 			case FT_BYTE_ARRAY:
-				if (f->byte_array.has_type)
-					free(f->byte_array.type_field);
+				if (f->byte_array.has_type) {
+					free_fields(f->byte_array.type_field);
+				}
 				break;
 			case FT_ENUM:
 				free(f->enum_data.type_field);
@@ -656,5 +743,15 @@ void free_fields(struct field *f)
 		struct field *next = f->next;
 		free(f);
 		f = next;
+	}
+}
+
+void free_args(struct arg *args)
+{
+	struct arg *next_arg;
+	while (args != NULL) {
+		next_arg = args->next;
+		free(args);
+		args = next_arg;
 	}
 }
