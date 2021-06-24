@@ -189,6 +189,8 @@ static void generate_struct_array_structs(char *name, struct field *f)
 			case FT_STRUCT_ARRAY:
 				generate_struct_array_structs(name, f->struct_array.fields);
 				break;
+			default:
+				break;
 		}
 
 		if (f->type == FT_STRUCT_ARRAY) {
@@ -573,6 +575,8 @@ static void read_field(char *packet_name, struct field *f, size_t indent)
 				/* fallthrough */
 			case FT_BYTE:
 				printf("(uint8_t *) ");
+				break;
+			default:
 				break;
 		}
 		putchar('&');

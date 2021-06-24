@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 	}
 
 	for (int i = 1; i < argc; ++i) {
-		uint32_t hash = str_fnv1a(argv[i], strlen(argv[i]));
-		printf("%s: 0x%x\n", argv[i], hash);
+		uint16_t hash = str_fnv1a(argv[i], strlen(argv[i]));
+		printf("%s: 0x%04x\n", argv[i], hash);
 	}
 }

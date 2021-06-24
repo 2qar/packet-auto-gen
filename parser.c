@@ -573,6 +573,8 @@ static void create_parent_links_iter(struct field *parent, struct field *f)
 			case FT_UNION:
 				create_parent_links_iter(f, f->union_data.fields);
 				break;
+			default:
+				break;
 		}
 		f = f->next;
 	}
