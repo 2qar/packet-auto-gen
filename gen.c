@@ -35,6 +35,8 @@ void put_includes()
 static char *ftype_to_ctype(struct field *f)
 {
 	switch (f->type) {
+		case FT_BYTE_ARRAY:
+			return ftype_to_ctype(f->byte_array.type_field);
 		case FT_ENUM:
 			if (f->enum_data.type_field->type == FT_STRING)
 				return "char*";
@@ -180,6 +182,10 @@ static void generate_struct_array_structs(char *name, struct field *f)
 {
 	while (f->type != 0) {
 		switch (f->type) {
+			case FT_BYTE_ARRAY:
+				if (f->byte_array.has_type)
+					generate_struct_array_structs(name, f->byte_array.type_field);
+				break;
 			case FT_STRUCT:
 				generate_struct_array_structs(name, f->struct_fields);
 				break;
@@ -259,8 +265,25 @@ static void put_path(struct field *f)
 	put_indented(indent, "err.input_err.field_name = \"%s\";\n", field->name); \
 	put_indented(indent, "return err;\n"); \
 
-static void write_field(char *packet_name, struct field *, size_t indent);
-static void write_fields(char *packet_name, struct field *, size_t indent);
+static void write_field(char *packet_name, const char *packet_var, struct field *, size_t indent);
+static void write_fields(char *packet_name, const char *packet_var, struct field *, size_t indent);
+
+static void write_byte_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
+{
+	if (f->byte_array.has_type) {
+		put_indented(indent, "struct packet *byte_array_pack = malloc(sizeof(struct packet));\n");
+		put_indented(indent, "packet_init(byte_array_packet);\n");
+		put_indented(indent, "byte_array_packet->packet_mode = PACKET_MODE_WRITE;\n");
+		write_fields(packet_name, "byte_array_pack", f->byte_array.type_field, indent);
+		put_indented(indent, "n = packet_write_bytes(%s, byte_array_pack->packet_len, byte_array_pack->data);\n", packet_var);
+		put_indented(indent, "free(byte_array_pack->data);\n");
+		put_indented(indent, "free(byte_array_pack);\n");
+	} else {
+		put_indented(indent, "n = packet_write_bytes(%s, %zu, ", packet_var, f->byte_array.len);
+		put_path(f);
+		printf("%s);\n", f->name);
+	}
+}
 
 static void write_string_enum_check(struct field *enum_field, size_t indent)
 {
@@ -286,7 +309,7 @@ static void write_string_enum_check(struct field *enum_field, size_t indent)
 	put_indented(indent, "}\n");
 }
 
-static void write_struct_array(char *packet_name, struct field *f, size_t indent)
+static void write_struct_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	put_indented(indent, "%s %s_len = ", ftype_to_ctype(f->struct_array.len_field), f->name);
 	if (f->struct_array.len_is_bitcount) {
@@ -306,12 +329,12 @@ static void write_struct_array(char *packet_name, struct field *f, size_t indent
 		printf("%s_len;\n", f->name);
 	}
 	put_indented(indent, "for (%s i_%s = 0; i_%s < %s_len; ++i_%s) {\n", ftype_to_ctype(f->struct_array.len_field), f->name, f->name, f->name, f->name);
-	write_fields(packet_name, f->struct_array.fields, indent + 1);
+	write_fields(packet_name, packet_var, f->struct_array.fields, indent + 1);
 	put_indent(indent);
 	printf("}\n");
 }
 
-static void write_union(char *packet_name, struct field *union_field, size_t indent)
+static void write_union(char *packet_name, const char *packet_var, struct field *union_field, size_t indent)
 {
 	struct field *enum_field = union_field->union_data.enum_field;
 	put_indented(indent, "switch (");
@@ -331,7 +354,7 @@ static void write_union(char *packet_name, struct field *union_field, size_t ind
 		//        be passed around everywhere just for this function
 		put_enum_constant(packet_name, enum_field->name, c->name);
 		printf(":;\n");
-		write_field(packet_name, f, indent + 2);
+		write_field(packet_name, packet_var, f, indent + 2);
 		put_indented(indent + 2, "break;\n");
 		f = f->next;
 		c = c->next;
@@ -344,7 +367,7 @@ static void write_union(char *packet_name, struct field *union_field, size_t ind
 	printf("}\n");
 }
 
-static void write_string(struct field *f, size_t indent)
+static void write_string(const char *packet_var, struct field *f, size_t indent)
 {
 	put_indented(indent, "size_t %s_len = strlen(", f->name);
 	put_path(f);
@@ -355,14 +378,14 @@ static void write_string(struct field *f, size_t indent)
 	put_input_error(indent + 1, PROTOCOL_INPUT_ERR_LEN, f);
 	put_indented(indent, "}\n");
 
-	put_indented(indent, "n = packet_write_string(p, %s_len, ", f->name);
+	put_indented(indent, "n = packet_write_string(%s, %s_len, ", packet_var, f->name);
 	put_path(f);
 	printf("%s);\n", f->name);
 }
 
-static void write_uuid(struct field *f, size_t indent)
+static void write_uuid(const char *packet_var, struct field *f, size_t indent)
 {
-	put_indented(indent, "n = packet_write_bytes(p, 16, ");
+	put_indented(indent, "n = packet_write_bytes(%s, 16, ", packet_var);
 	put_path(f);
 	printf("%s);\n", f->name);
 }
@@ -392,7 +415,7 @@ static void put_condition(struct condition *condition)
 
 }
 
-static void write_field(char *packet_name, struct field *f, size_t indent)
+static void write_field(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	char *packet_type = NULL;
 	if (f->condition != NULL) {
@@ -403,28 +426,31 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 	}
 	bool check_result = false;
 	switch (f->type) {
+		case FT_BYTE_ARRAY:
+			write_byte_array(packet_name, packet_var, f, indent);
+			break;
 		case FT_ENUM:
 			if (f->enum_data.type_field->type == FT_STRING)
 				write_string_enum_check(f, indent);
-			write_field(packet_name, f->enum_data.type_field, indent);
+			write_field(packet_name, packet_var, f->enum_data.type_field, indent);
 			break;
 		case FT_STRUCT:;
-			write_fields(packet_name, f->struct_fields, indent);
+			write_fields(packet_name, packet_var, f->struct_fields, indent);
 			break;
 		case FT_STRUCT_ARRAY:
-			write_struct_array(packet_name, f, indent);
+			write_struct_array(packet_name, packet_var, f, indent);
 			break;
 		case FT_UNION:
-			write_union(packet_name, f, indent);
+			write_union(packet_name, packet_var, f, indent);
 			break;
 		case FT_STRING:
 		case FT_IDENTIFIER:
 		case FT_CHAT:
-			write_string(f, indent);
+			write_string(packet_var, f, indent);
 			check_result = true;
 			break;
 		case FT_UUID:
-			write_uuid(f, indent);
+			write_uuid(packet_var, f, indent);
 			check_result = true;
 			break;
 		case FT_EMPTY:
@@ -435,7 +461,7 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 			break;
 	}
 	if (packet_type != NULL) {
-		put_indented(indent, "n = packet_write_%s(p, ", packet_type);
+		put_indented(indent, "n = packet_write_%s(%s, ", packet_type, packet_var);
 		put_path(f);
 		printf("%s);\n", f->name);
 	}
@@ -449,10 +475,10 @@ static void write_field(char *packet_name, struct field *f, size_t indent)
 	}
 }
 
-static void write_fields(char *packet_name, struct field *f, size_t indent)
+static void write_fields(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	while (f->type) {
-		write_field(packet_name, f, indent);
+		write_field(packet_name, packet_var, f, indent);
 		f = f->next;
 	}
 }
@@ -463,7 +489,7 @@ void generate_write_function(int id, char *name, struct field *f)
 	printf("\tmake_packet(p, 0x%x);\n", id);
 	printf("\tstruct protocol_err err = {0};\n");
 	printf("\tint n;\n");
-	write_fields(name, f, 1);
+	write_fields(name, "p", f, 1);
 	printf("\treturn err;\n");
 	printf("err:\n");
 	printf("\terr.err_type = PROTOCOL_ERR_PACKET;\n");
