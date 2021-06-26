@@ -114,7 +114,7 @@ static struct token *seek_next_arg_sep(struct token *arg_start)
 {
 	struct token *t = arg_start;
 	int paren_level = 1;
-	while (t != NULL && paren_level > 0 && !token_equals(t, ",")) {
+	while (t != NULL && paren_level > 0 && !(token_equals(t, ",") && paren_level == 1)) {
 		if (token_equals(t, "("))
 			++paren_level;
 		else if (token_equals(t, ")"))
