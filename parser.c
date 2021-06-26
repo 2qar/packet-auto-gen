@@ -69,6 +69,17 @@ static bool read_array_args(struct arg *args, struct field *field)
 	if (args->next != NULL && args->next->type == ARG_TYPE_NUM) {
 		field->array.has_len = true;
 		field->array.array_len = args->next->num;
+	} else if (field->type == FT_STRUCT_ARRAY && args->next != NULL &&
+			args->next->type == ARG_TYPE_BITCOUNT) {
+		struct arg *bitcount_arg = args->next->bitcount_arg;
+		if (bitcount_arg->type != ARG_TYPE_FIELD_REF) {
+			perr("can't take the bitcount of '", bitcount_arg->start_token, "'\n");
+			return true;
+		} else {
+			field->struct_array.len_field = bitcount_arg->field;
+			bitcount_arg->field = NULL;
+			field->struct_array.len_is_bitcount = true;
+		}
 	}
 	return false;
 }
@@ -142,6 +153,10 @@ static void parse_arg(struct token *arg_start, struct arg *arg)
 	} else if (token_equals(arg_start, "struct")) {
 		arg->type = ARG_TYPE_STRUCT;
 		arg->struct_name = arg_start->next;
+	} else if (!strncmp(arg_start->start, "bitcount(", strlen("bitcount("))) {
+		arg->type = ARG_TYPE_BITCOUNT;
+		arg->bitcount_arg = calloc(1, sizeof(struct arg));
+		parse_arg(arg_start->next->next, arg->bitcount_arg);
 	} else {
 		arg->type = ARG_TYPE_FIELD_REF;
 		arg->field = calloc(1, sizeof(struct field));
@@ -655,6 +670,10 @@ static bool resolve_field_name_refs_iter(struct field *root, struct field *f)
 		}
 
 		switch (f->type) {
+			case FT_BYTE_ARRAY:
+				if (f->byte_array.has_type)
+					err = resolve_field_name_refs_iter(root, f->byte_array.type_field);
+				break;
 			case FT_ARRAY:
 				if (!f->array.has_len) {
 					f->array.len_field = find_len_field(root, f);
@@ -666,11 +685,22 @@ static bool resolve_field_name_refs_iter(struct field *root, struct field *f)
 				err = resolve_field_name_refs_iter(root, f->struct_fields);
 				break;
 			case FT_STRUCT_ARRAY:
-				f->struct_array.len_field = find_len_field(root, f);
-				if (f->struct_array.len_field == NULL)
-					err = true;
-				else
-					err = resolve_field_name_refs_iter(root, f->struct_array.fields);
+				if (f->struct_array.len_field == NULL) {
+					f->struct_array.len_field = find_len_field(root, f);
+					if (f->struct_array.len_field == NULL)
+						err = true;
+					else
+						err = resolve_field_name_refs_iter(root, f->struct_array.fields);
+				} else {
+					char *name = f->struct_array.len_field->name;
+					free(f->struct_array.len_field);
+					f->struct_array.len_field = find_field(root, FT_ANY, name);
+					if (f->struct_array.len_field == NULL) {
+						fprintf(stderr, "the field given to bitcount() doesn't exist\n");
+						err = true;
+					}
+					free(name);
+				}
 				break;
 			case FT_UNION:;
 				struct field *partial = f->union_data.enum_field;
@@ -752,6 +782,13 @@ void free_args(struct arg *args)
 {
 	struct arg *next_arg;
 	while (args != NULL) {
+		switch (args->type) {
+			case ARG_TYPE_BITCOUNT:
+				free_args(args->bitcount_arg);
+				break;
+			default:
+				break;
+		}
 		next_arg = args->next;
 		free(args);
 		args = next_arg;

@@ -288,9 +288,24 @@ static void write_string_enum_check(struct field *enum_field, size_t indent)
 
 static void write_struct_array(char *packet_name, struct field *f, size_t indent)
 {
-	put_indented(indent, "for (%s i_%s = 0; i_%s < ", ftype_to_ctype(f->struct_array.len_field), f->name, f->name);
-	put_path(f);
-	printf("%s_len; ++i_%s) {\n", f->name, f->name);
+	put_indented(indent, "%s %s_len = ", ftype_to_ctype(f->struct_array.len_field), f->name);
+	if (f->struct_array.len_is_bitcount) {
+		printf("0;\n");
+		char *len_name = f->struct_array.len_field->name;
+		put_indented(indent, "size_t %s_bits = ", len_name);
+		put_path(f->struct_array.len_field);
+		printf("%s;\n", len_name);
+		put_indented(indent, "size_t i_%s = 0;\n", len_name);
+		put_indented(indent, "while (i_%s < sizeof(size_t) && %s_bits != 0) {\n", len_name, len_name);
+		put_indented(indent + 1, "%s_len += %s_bits & 1;\n", f->name, f->name);
+		put_indented(indent + 1, "%s_bits >>= 1;\n", len_name);
+		put_indented(indent + 1, "++i_%s;\n", len_name);
+		put_indented(indent, "}\n");
+	} else {
+		put_path(f);
+		printf("%s_len;\n", f->name);
+	}
+	put_indented(indent, "for (%s i_%s = 0; i_%s < %s_len; ++i_%s) {\n", ftype_to_ctype(f->struct_array.len_field), f->name, f->name, f->name, f->name);
 	write_fields(packet_name, f->struct_array.fields, indent + 1);
 	put_indent(indent);
 	printf("}\n");

@@ -89,6 +89,7 @@ struct field {
 			char *struct_name;
 			struct field *fields;
 			struct field *len_field;
+			bool len_is_bitcount;
 		} struct_array;
 		struct {
 			bool has_type;
@@ -108,12 +109,14 @@ struct arg {
 		ARG_TYPE_FIELD_TYPE,
 		ARG_TYPE_FIELD_REF,
 		ARG_TYPE_STRUCT,
+		ARG_TYPE_BITCOUNT,
 	} type;
 	struct token *start_token;
 	union {
 		size_t num;
 		struct field *field;
 		struct token *struct_name;
+		struct arg *bitcount_arg;
 	};
 	struct arg *next;
 };
