@@ -147,6 +147,7 @@ static void parse_arg(struct token *arg_start, struct arg *arg)
 	} else if (valid_type((type = str_fnv1a(arg_start->start, arg_start->len)), valid_types)) {
 		arg->type = ARG_TYPE_FIELD_TYPE;
 		arg->field = calloc(1, sizeof(struct field));
+		arg->field->next = calloc(1, sizeof(struct field));
 		arg->field->type = type;
 		if (valid_type(type, valid_types_with_args))
 			read_type_args(arg_start, arg->field);
