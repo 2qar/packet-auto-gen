@@ -61,6 +61,7 @@ static bool read_array_args(struct arg *args, struct field *field)
 		size_t name_len = struct_name_tok->len + 1;
 		field->struct_array.struct_name = calloc(name_len, sizeof(char));
 		snprintf(field->struct_array.struct_name, name_len, "%s", struct_name_tok->start);
+		free(args->field->next);
 		free(args->field);
 	} else {
 		field->array.type_field = args->field;
@@ -751,7 +752,7 @@ void free_fields(struct field *f)
 
 		switch (f->type) {
 			case FT_ARRAY:
-				free(f->array.type_field);
+				free_fields(f->array.type_field);
 				break;
 			case FT_BYTE_ARRAY:
 				if (f->byte_array.has_type) {
