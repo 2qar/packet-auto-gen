@@ -629,6 +629,8 @@ static struct field *find_field_with_len(struct field *f, uint32_t f_type, size_
 			res = find_field_with_len(f->struct_array.fields, f_type, f_name_len, f_name);
 		else if (f->type == FT_UNION)
 			res = find_field_with_len(f->union_data.fields, f_type, f_name_len, f_name);
+		else if (f->type == FT_BYTE_ARRAY && f->byte_array.has_type)
+			res = find_field_with_len(f->byte_array.type_field, f_type, f_name_len, f_name);
 
 		f = f->next;
 	}
