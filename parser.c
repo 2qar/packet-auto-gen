@@ -704,8 +704,6 @@ static bool resolve_field_name_refs_iter(struct field *root, struct field *f)
 					f->struct_array.len_field = find_len_field(root, f);
 					if (f->struct_array.len_field == NULL)
 						err = true;
-					else
-						err = resolve_field_name_refs_iter(root, f->struct_array.fields);
 				} else {
 					char *name = f->struct_array.len_field->name;
 					free(f->struct_array.len_field);
@@ -716,6 +714,8 @@ static bool resolve_field_name_refs_iter(struct field *root, struct field *f)
 					}
 					free(name);
 				}
+				if (!err)
+					err = resolve_field_name_refs_iter(root, f->struct_array.fields);
 				break;
 			case FT_UNION:;
 				struct field *partial = f->union_data.enum_field;
