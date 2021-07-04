@@ -35,6 +35,8 @@ void put_includes()
 static char *ftype_to_ctype(struct field *f)
 {
 	switch (f->type) {
+		case FT_ARRAY:
+			return ftype_to_ctype(f->array.type_field);
 		case FT_BYTE_ARRAY:
 			return ftype_to_ctype(f->byte_array.type_field);
 		case FT_ENUM:
@@ -146,7 +148,7 @@ static void put_fields(char *name, struct field *f, size_t indent)
 					printf(" %s_%s *", name, f->struct_array.struct_name);
 					break;
 				case FT_ARRAY:
-					printf("/* TODO: array */ ");
+					printf(" *");
 					break;
 				case FT_UNION:
 					printf(" {\n");
@@ -268,6 +270,19 @@ static void put_path(struct field *f)
 static void write_field(char *packet_name, const char *packet_var, struct field *, size_t indent);
 static void write_fields(char *packet_name, const char *packet_var, struct field *, size_t indent);
 
+static void write_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
+{
+	if (f->array.has_len) {
+		put_indented(indent, "for (size_t i_%s = 0; i_%s < %zu; ++i_%s) {\n", f->name, f->name, f->array.array_len, f->name);
+	} else {
+		put_indented(indent, "for (%s i_%s = 0; i < ", ftype_to_ctype(f->array.len_field), f->name);
+		put_path(f->array.len_field);
+		printf("%s; ++i_%s) {\n", f->array.len_field->name, f->name);
+	}
+	write_field(packet_name, packet_var, f->array.type_field, indent + 1);
+	put_indented(indent, "}\n");
+}
+
 static void write_byte_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	if (f->byte_array.has_type) {
@@ -318,6 +333,9 @@ static void write_struct_array(char *packet_name, const char *packet_var, struct
 		put_indented(indent, "size_t %s_bits = ", len_name);
 		put_path(f->struct_array.len_field);
 		printf("%s;\n", len_name);
+		// FIXME: size_t is just the type for object sizes (arrays, etc),
+		//        not actually the biggest integer type? who woulda thunk
+		//        'size_t' is related to size xd
 		put_indented(indent, "size_t i_%s = 0;\n", len_name);
 		put_indented(indent, "while (i_%s < sizeof(size_t) && %s_bits != 0) {\n", len_name, len_name);
 		put_indented(indent + 1, "%s_len += %s_bits & 1;\n", f->name, f->name);
@@ -426,6 +444,9 @@ static void write_field(char *packet_name, const char *packet_var, struct field 
 	}
 	bool check_result = false;
 	switch (f->type) {
+		case FT_ARRAY:
+			write_array(packet_name, packet_var, f, indent);
+			break;
 		case FT_BYTE_ARRAY:
 			write_byte_array(packet_name, packet_var, f, indent);
 			break;
@@ -498,6 +519,21 @@ void generate_write_function(int id, char *name, struct field *f)
 	printf("}\n");
 }
 
+static void read_field(char *packet_name, struct field *f, size_t indent);
+
+static void read_array(char *packet_name, struct field *f, size_t indent)
+{
+	if (f->array.has_len) {
+		put_indented(indent, "for (size_t i_%s = 0; i_%s < %zu; ++i_%s) {\n", f->name, f->name, f->array.array_len, f->name);
+	} else {
+		put_indented(indent, "for (%s i_%s = 0; i < ", ftype_to_ctype(f->array.len_field), f->name);
+		put_path(f->array.len_field);
+		printf("%s; ++i_%s) {\n", f->array.len_field->name, f->name);
+	}
+	read_field(packet_name, f->array.type_field, indent + 1);
+	put_indented(indent, "}\n");
+}
+
 static void read_varint(struct field *f, size_t indent)
 {
 	put_indented(indent, "n = packet_read_varint(p, (int *) &");
@@ -541,8 +577,6 @@ static void read_string(struct field *f, size_t indent)
 	put_indented(indent, "}\n");
 }
 
-static void read_field(char *packet_name, struct field *f, size_t indent);
-
 static void read_union(char *packet_name, struct field *union_field, size_t indent)
 {
 	put_indented(indent, "switch (");
@@ -584,6 +618,9 @@ static void read_field(char *packet_name, struct field *f, size_t indent)
 {
 	char *packet_type = NULL;
 	switch (f->type) {
+		case FT_ARRAY:
+			read_array(packet_name, f, indent);
+			break;
 		case FT_ENUM:
 			read_field(packet_name, f->enum_data.type_field, indent);
 			break;

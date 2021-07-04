@@ -292,12 +292,18 @@ static struct token *read_field_name(struct token *name_tok, struct field *field
 	char *name = calloc(name_len, sizeof(char));
 	snprintf(name, name_len, "%s", name_tok->start);
 	field->name = name;
+	// FIXME: it would probably be less confusing if the type fields were
+	//        nameless, and if the gen code printed the parent's name for
+	//        these type fields
 	switch (field->type) {
 		case FT_ENUM:
 			field->enum_data.type_field->name = field->name;
 			break;
 		case FT_BYTE_ARRAY:
 			field->byte_array.type_field->name = field->name;
+			break;
+		case FT_ARRAY:
+			field->array.type_field->name = field->name;
 			break;
 		default:
 			break;
@@ -754,6 +760,7 @@ void free_fields(struct field *f)
 
 		switch (f->type) {
 			case FT_ARRAY:
+				f->array.type_field->name = NULL;
 				free_fields(f->array.type_field);
 				break;
 			case FT_BYTE_ARRAY:
