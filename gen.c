@@ -275,6 +275,35 @@ static void put_path(struct field *f)
 	put_indented(indent, "err.input_err.field_name = \"%s\";\n", field->name); \
 	put_indented(indent, "return err;\n"); \
 
+static void put_bitcount(struct field *f, size_t indent)
+{
+	char *len_name = f->struct_array.len_field->name;
+	put_indented(indent, "size_t %s_bits = ", len_name);
+	put_path(f->struct_array.len_field);
+	printf("%s;\n", len_name);
+	// FIXME: size_t is just the type for object sizes (arrays, etc),
+	//        not actually the biggest integer type? who woulda thunk
+	//        'size_t' is related to size xd
+	put_indented(indent, "size_t i_%s = 0;\n", len_name);
+	put_indented(indent, "while (i_%s < sizeof(size_t) && %s_bits != 0) {\n", len_name, len_name);
+	put_indented(indent + 1, "%s_len += %s_bits & 1;\n", f->name, f->name);
+	put_indented(indent + 1, "%s_bits >>= 1;\n", len_name);
+	put_indented(indent + 1, "++i_%s;\n", len_name);
+	put_indented(indent, "}\n");
+}
+
+static void put_struct_array_len(struct field *f, size_t indent)
+{
+	put_indented(indent, "%s %s_len = ", ftype_to_ctype(f->struct_array.len_field), f->name);
+	if (f->struct_array.len_is_bitcount) {
+		printf("0;\n");
+		put_bitcount(f, indent);
+	} else {
+		put_path(f);
+		printf("%s_len;\n", f->name);
+	}
+}
+
 static void write_field(char *packet_name, const char *packet_var, struct field *, size_t indent);
 static void write_fields(char *packet_name, const char *packet_var, struct field *, size_t indent);
 
@@ -334,26 +363,7 @@ static void write_string_enum_check(struct field *enum_field, size_t indent)
 
 static void write_struct_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
-	put_indented(indent, "%s %s_len = ", ftype_to_ctype(f->struct_array.len_field), f->name);
-	if (f->struct_array.len_is_bitcount) {
-		printf("0;\n");
-		char *len_name = f->struct_array.len_field->name;
-		put_indented(indent, "size_t %s_bits = ", len_name);
-		put_path(f->struct_array.len_field);
-		printf("%s;\n", len_name);
-		// FIXME: size_t is just the type for object sizes (arrays, etc),
-		//        not actually the biggest integer type? who woulda thunk
-		//        'size_t' is related to size xd
-		put_indented(indent, "size_t i_%s = 0;\n", len_name);
-		put_indented(indent, "while (i_%s < sizeof(size_t) && %s_bits != 0) {\n", len_name, len_name);
-		put_indented(indent + 1, "%s_len += %s_bits & 1;\n", f->name, f->name);
-		put_indented(indent + 1, "%s_bits >>= 1;\n", len_name);
-		put_indented(indent + 1, "++i_%s;\n", len_name);
-		put_indented(indent, "}\n");
-	} else {
-		put_path(f);
-		printf("%s_len;\n", f->name);
-	}
+	put_struct_array_len(f, indent);
 	put_indented(indent, "for (%s i_%s = 0; i_%s < %s_len; ++i_%s) {\n", ftype_to_ctype(f->struct_array.len_field), f->name, f->name, f->name, f->name);
 	write_fields(packet_name, packet_var, f->struct_array.fields, indent + 1);
 	put_indent(indent);
@@ -649,11 +659,10 @@ static void read_union(char *packet_name, const char *packet_var, struct field *
 
 static void read_struct_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
+	put_struct_array_len(f, indent);
 	put_indent(indent);
 	put_path(f);
-	printf("%s = calloc(", f->name);
-	put_path(f);
-	printf("%s_len, sizeof(struct %s_%s));\n", f->name, packet_name, f->struct_array.struct_name);
+	printf("%s = calloc(%s_len, sizeof(struct %s_%s));\n", f->name, f->name, packet_name, f->struct_array.struct_name);
 	put_indented(indent, "for (%s i_%s = 0; i_%s < ", ftype_to_ctype(f->struct_array.len_field), f->name,  f->name);
 	put_path(f);
 	printf("%s_len; ++i_%s) {\n", f->name, f->name);
