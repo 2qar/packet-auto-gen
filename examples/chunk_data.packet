@@ -6,6 +6,7 @@ Bool full_chunk
 VarInt primary_bit_mask
 NBT heightmaps
 Array(Int, 1024) biomes (if full_chunk)
+VarInt data_len
 ByteArray(Array(struct chunk_section, bitcount(primary_bit_mask))) data {
 	Short block_count
 	UByte bits_per_block
