@@ -484,6 +484,12 @@ static void write_field(char *packet_name, const char *packet_var, struct field 
 			break;
 		case FT_EMPTY:
 			break;
+		case FT_NBT:
+			put_indented(indent, "n = packet_write_nbt(%s, ", packet_var);
+			put_path(f);
+			printf("%s);\n", f->name);
+			check_result = true;
+			break;
 		default:
 			packet_type = ftype_to_packet_type(f->type);
 			check_result = true;
