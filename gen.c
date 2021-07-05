@@ -43,14 +43,21 @@ static char *ftype_to_ctype(struct field *f)
 				return "char*";
 			else
 				return "enum";
-		case FT_DOUBLE:
-			return "double";
 		case FT_BOOL:
 			return "bool";
+		case FT_UBYTE:
+			return "uint8_t";
+		case FT_SHORT:
+			return "int16_t";
+		case FT_INT:
 		case FT_VARINT:
 			return "int32_t";
+		case FT_LONG:
+			return "int64_t";
 		case FT_FLOAT:
 			return "float";
+		case FT_DOUBLE:
+			return "double";
 		case FT_STRUCT:
 		case FT_STRUCT_ARRAY:
 			return "struct";
@@ -62,6 +69,8 @@ static char *ftype_to_ctype(struct field *f)
 			return "uint64_t";
 		case FT_UNION:
 			return "union";
+		case FT_NBT:
+			return "struct nbt*";
 		default:
 			return NULL;
 	}
