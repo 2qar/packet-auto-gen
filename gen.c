@@ -36,9 +36,8 @@ static char *ftype_to_ctype(struct field *f)
 {
 	switch (f->type) {
 		case FT_ARRAY:
-			return ftype_to_ctype(f->array.type_field);
 		case FT_BYTE_ARRAY:
-			return ftype_to_ctype(f->byte_array.type_field);
+			return ftype_to_ctype(f->array.type_field);
 		case FT_ENUM:
 			if (f->enum_data.type_field->type == FT_STRING)
 				return "char*";
@@ -185,8 +184,8 @@ static void generate_struct_array_structs(char *name, struct field *f)
 	while (f->type != 0) {
 		switch (f->type) {
 			case FT_BYTE_ARRAY:
-				if (f->byte_array.has_type)
-					generate_struct_array_structs(name, f->byte_array.type_field);
+				if (f->array.type_field)
+					generate_struct_array_structs(name, f->array.type_field);
 				break;
 			case FT_STRUCT:
 				generate_struct_array_structs(name, f->struct_fields);
@@ -285,16 +284,16 @@ static void write_array(char *packet_name, const char *packet_var, struct field 
 
 static void write_byte_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
-	if (f->byte_array.has_type) {
+	if (f->array.type_field) {
 		put_indented(indent, "struct packet *byte_array_pack = malloc(sizeof(struct packet));\n");
 		put_indented(indent, "packet_init(byte_array_packet);\n");
 		put_indented(indent, "byte_array_packet->packet_mode = PACKET_MODE_WRITE;\n");
-		write_fields(packet_name, "byte_array_pack", f->byte_array.type_field, indent);
+		write_fields(packet_name, "byte_array_pack", f->array.type_field, indent);
 		put_indented(indent, "n = packet_write_bytes(%s, byte_array_pack->packet_len, byte_array_pack->data);\n", packet_var);
 		put_indented(indent, "free(byte_array_pack->data);\n");
 		put_indented(indent, "free(byte_array_pack);\n");
 	} else {
-		put_indented(indent, "n = packet_write_bytes(%s, %zu, ", packet_var, f->byte_array.len);
+		put_indented(indent, "n = packet_write_bytes(%s, %zu, ", packet_var, f->array.array_len);
 		put_path(f);
 		printf("%s);\n", f->name);
 	}

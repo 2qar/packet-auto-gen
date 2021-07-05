@@ -89,10 +89,9 @@ static bool read_byte_array_args(struct arg *args, struct field *field)
 {
 	assert(args != NULL);
 	if (args->type == ARG_TYPE_NUM) {
-		field->byte_array.len = args->num;
+		field->array.array_len = args->num;
 	} else if (args->type == ARG_TYPE_FIELD_TYPE) {
-		field->byte_array.has_type = true;
-		field->byte_array.type_field = args->field;
+		field->array.type_field = args->field;
 	} else {
 		perr("expected a number or field type, got '", args->start_token, "'\n");
 		return true;
@@ -299,10 +298,8 @@ static struct token *read_field_name(struct token *name_tok, struct field *field
 		case FT_ENUM:
 			field->enum_data.type_field->name = field->name;
 			break;
-		case FT_BYTE_ARRAY:
-			field->byte_array.type_field->name = field->name;
-			break;
 		case FT_ARRAY:
+		case FT_BYTE_ARRAY:
 			field->array.type_field->name = field->name;
 			break;
 		default:
@@ -521,7 +518,7 @@ static struct token *read_field_body(struct token *open_brace, struct field *f)
 	struct token *t;
 	switch (f->type) {
 		case FT_BYTE_ARRAY:
-			t = read_field_body(open_brace, f->byte_array.type_field);
+			t = read_field_body(open_brace, f->array.type_field);
 			break;
 		case FT_ENUM:
 			t = parse_enum(open_brace->next->next, f);
@@ -559,8 +556,8 @@ struct token *parse_field(struct token *t, struct field *f)
 
 	bool has_body = token_equals(t, "{");
 	bool should_have_body = false;
-	if (f->type == FT_BYTE_ARRAY && f->byte_array.has_type)
-		should_have_body = type_has_body(f->byte_array.type_field->type);
+	if (f->type == FT_BYTE_ARRAY && f->array.type_field)
+		should_have_body = type_has_body(f->array.type_field->type);
 	else
 		should_have_body = type_has_body(f->type);
 
@@ -593,7 +590,7 @@ static void create_parent_links_iter(struct field *parent, struct field *f)
 		f->parent = parent;
 		switch (f->type) {
 			case FT_BYTE_ARRAY:
-				f->byte_array.type_field->parent = f->parent;
+				f->array.type_field->parent = f->parent;
 				break;
 			case FT_ENUM:
 				f->enum_data.type_field->parent = f->parent;
@@ -635,8 +632,8 @@ static struct field *find_field_with_len(struct field *f, uint32_t f_type, size_
 			res = find_field_with_len(f->struct_array.fields, f_type, f_name_len, f_name);
 		else if (f->type == FT_UNION)
 			res = find_field_with_len(f->union_data.fields, f_type, f_name_len, f_name);
-		else if (f->type == FT_BYTE_ARRAY && f->byte_array.has_type)
-			res = find_field_with_len(f->byte_array.type_field, f_type, f_name_len, f_name);
+		else if (f->type == FT_BYTE_ARRAY && f->array.type_field)
+			res = find_field_with_len(f->array.type_field, f_type, f_name_len, f_name);
 
 		f = f->next;
 	}
@@ -692,9 +689,9 @@ static bool resolve_field_name_refs_iter(struct field *root, struct field *f)
 
 		switch (f->type) {
 			case FT_BYTE_ARRAY:
-				if (f->byte_array.has_type)
-					err = resolve_field_name_refs_iter(root, f->byte_array.type_field);
-				break;
+				if (f->array.type_field)
+					err = resolve_field_name_refs_iter(root, f->array.type_field);
+				/* fallthrough */
 			case FT_ARRAY:
 				if (!f->array.has_len) {
 					f->array.len_field = find_len_field(root, f);
@@ -760,13 +757,10 @@ void free_fields(struct field *f)
 
 		switch (f->type) {
 			case FT_ARRAY:
-				f->array.type_field->name = NULL;
-				free_fields(f->array.type_field);
-				break;
 			case FT_BYTE_ARRAY:
-				if (f->byte_array.has_type) {
-					f->byte_array.type_field->name = NULL;
-					free_fields(f->byte_array.type_field);
+				if (f->array.type_field) {
+					f->array.type_field->name = NULL;
+					free_fields(f->array.type_field);
 				}
 				break;
 			case FT_ENUM:

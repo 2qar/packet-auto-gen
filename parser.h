@@ -91,13 +91,6 @@ struct field {
 			struct field *len_field;
 			bool len_is_bitcount;
 		} struct_array;
-		struct {
-			bool has_type;
-			union {
-				size_t len;
-				struct field *type_field;
-			};
-		} byte_array;
 	};
 	struct field *parent;
 	struct field *next;
