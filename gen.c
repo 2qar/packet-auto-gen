@@ -518,9 +518,10 @@ void generate_write_function(int id, char *name, struct field *f)
 	printf("}\n");
 }
 
-static void read_field(char *packet_name, struct field *f, size_t indent);
+static void read_field(char *packet_name, const char *packet_var, struct field *f, size_t indent);
+static void read_fields(char *packet_name, const char *packet_var, struct field *f, size_t indent);
 
-static void read_array(char *packet_name, struct field *f, size_t indent)
+static void read_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	if (f->array.has_len) {
 		put_indented(indent, "for (size_t i_%s = 0; i_%s < %zu; ++i_%s) {\n", f->name, f->name, f->array.array_len, f->name);
@@ -529,13 +530,47 @@ static void read_array(char *packet_name, struct field *f, size_t indent)
 		put_path(f->array.len_field);
 		printf("%s; ++i_%s) {\n", f->array.len_field->name, f->name);
 	}
-	read_field(packet_name, f->array.type_field, indent + 1);
+	read_field(packet_name, packet_var, f->array.type_field, indent + 1);
 	put_indented(indent, "}\n");
 }
 
-static void read_varint(struct field *f, size_t indent)
+static void read_byte_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
-	put_indented(indent, "n = packet_read_varint(p, (int *) &");
+	if (f->array.type_field) {
+		put_indented(indent, "struct packet *byte_array_pack = malloc(sizeof(struct packet));\n");
+		put_indented(indent, "packet_init(byte_array_pack);\n");
+		put_indented(indent, "byte_array_pack->packet_mode = PACKET_MODE_READ;\n");
+		put_indented(indent, "if (!packet_read_bytes(%s, ", packet_var);
+		if (f->array.has_len)
+			printf("%zu", f->array.array_len);
+		else {
+			put_path(f->array.len_field);
+			printf("%s", f->array.len_field->name);
+		}
+		printf(", ");
+		put_path(f);
+		printf("%s)) {\n", f->name);
+		put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_PACKET;\n");
+		put_indented(indent + 1, "err.packet_err = PACKET_TOO_BIG;\n");
+		put_indented(indent + 1, "return err;\n");
+		put_indented(indent, "}\n");
+		read_fields(packet_name, "byte_array_pack", f->array.type_field, indent);
+		put_indented(indent, "free(byte_array_pack->data);\n");
+		put_indented(indent, "free(byte_array_pack);\n");
+	} else {
+		put_indented(indent, "if (!packet_read_bytes(%s, %zu, ", packet_var, f->array.array_len);
+		put_path(f);
+		printf("%s)) {\n", f->name);
+		put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_PACKET;\n");
+		put_indented(indent + 1, "err.packet_err = PACKET_TOO_BIG;\n");
+		put_indented(indent + 1, "return err;\n");
+		put_indented(indent, "}\n");
+	}
+}
+
+static void read_varint(const char *packet_var, struct field *f, size_t indent)
+{
+	put_indented(indent, "n = packet_read_varint(%s, (int *) &", packet_var);
 	put_path(f);
 	printf("%s);\n", f->name);
 	put_indented(indent, "if (n == PACKET_VARINT_TOO_LONG) {\n");
@@ -547,9 +582,9 @@ static void read_varint(struct field *f, size_t indent)
 	put_indented(indent, "}\n");
 }
 
-static void read_uuid(struct field *f, size_t indent)
+static void read_uuid(const char *packet_var, struct field *f, size_t indent)
 {
-	put_indented(indent, "if (!packet_read_bytes(p, 16, (uint8_t *) &");
+	put_indented(indent, "if (!packet_read_bytes(%s, 16, (uint8_t *) &", packet_var);
 	put_path(f);
 	printf("%s)) {\n", f->name);
 	put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_PACKET;\n");
@@ -558,13 +593,13 @@ static void read_uuid(struct field *f, size_t indent)
 	put_indented(indent, "}\n");
 }
 
-static void read_string(struct field *f, size_t indent)
+static void read_string(const char *packet_var, struct field *f, size_t indent)
 {
 	put_indented(indent, "size_t %s_len = %zu;\n", f->name, f->string_max_len + 1);
 	put_indent(indent);
 	put_path(f);
 	printf("%s = calloc(%s_len, sizeof(char));\n", f->name, f->name);
-	put_indented(indent, "n = packet_read_string(p, %s_len, ", f->name);
+	put_indented(indent, "n = packet_read_string(%s, %s_len, ", packet_var, f->name);
 	put_path(f);
 	printf("%s);\n", f->name);
 	put_indented(indent, "if (n == PACKET_VARINT_TOO_LONG) {\n");
@@ -576,7 +611,7 @@ static void read_string(struct field *f, size_t indent)
 	put_indented(indent, "}\n");
 }
 
-static void read_union(char *packet_name, struct field *union_field, size_t indent)
+static void read_union(char *packet_name, const char *packet_var, struct field *union_field, size_t indent)
 {
 	put_indented(indent, "switch (");
 	put_path(union_field->union_data.enum_field);
@@ -588,7 +623,7 @@ static void read_union(char *packet_name, struct field *union_field, size_t inde
 		put_indented(indent + 1, "case ");
 		put_enum_constant(packet_name, union_field->union_data.enum_field->name, c->name);
 		printf(":;\n");
-		read_field(packet_name, f, indent + 2);
+		read_field(packet_name, packet_var, f, indent + 2);
 		put_indented(indent + 2, "break;\n");
 
 		c = c->next;
@@ -597,9 +632,7 @@ static void read_union(char *packet_name, struct field *union_field, size_t inde
 	put_indented(indent, "}\n");
 }
 
-static void read_fields(char *packet_name, struct field *f, size_t indent);
-
-static void read_struct_array(char *packet_name, struct field *f, size_t indent)
+static void read_struct_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	put_indent(indent);
 	put_path(f);
@@ -609,44 +642,47 @@ static void read_struct_array(char *packet_name, struct field *f, size_t indent)
 	put_indented(indent, "for (%s i_%s = 0; i_%s < ", ftype_to_ctype(f->struct_array.len_field), f->name,  f->name);
 	put_path(f);
 	printf("%s_len; ++i_%s) {\n", f->name, f->name);
-	read_fields(packet_name, f->struct_array.fields, indent + 1);
+	read_fields(packet_name, packet_var, f->struct_array.fields, indent + 1);
 	put_indented(indent, "}\n");
 }
 
-static void read_field(char *packet_name, struct field *f, size_t indent)
+static void read_field(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	char *packet_type = NULL;
 	switch (f->type) {
 		case FT_ARRAY:
-			read_array(packet_name, f, indent);
+			read_array(packet_name, packet_var, f, indent);
+			break;
+		case FT_BYTE_ARRAY:
+			read_byte_array(packet_name, packet_var, f, indent);
 			break;
 		case FT_ENUM:
-			read_field(packet_name, f->enum_data.type_field, indent);
+			read_field(packet_name, packet_var, f->enum_data.type_field, indent);
 			break;
 		case FT_VARINT:
-			read_varint(f, indent);
+			read_varint(packet_var, f, indent);
 			break;
 		case FT_UUID:
-			read_uuid(f, indent);
+			read_uuid(packet_var, f, indent);
 			break;
 		case FT_STRING:
-			read_string(f, indent);
+			read_string(packet_var, f, indent);
 			break;
 		case FT_UNION:
-			read_union(packet_name, f, indent);
+			read_union(packet_name, packet_var, f, indent);
 			break;
 		case FT_STRUCT_ARRAY:
-			read_struct_array(packet_name, f, indent);
+			read_struct_array(packet_name, packet_var, f, indent);
 			break;
 		case FT_STRUCT:
-			read_fields(packet_name, f->struct_fields, indent);
+			read_fields(packet_name, packet_var, f->struct_fields, indent);
 			break;
 		default:
 			packet_type = ftype_to_packet_type(f->type);
 			break;
 	}
 	if (packet_type != NULL) {
-		put_indented(indent, "n = packet_read_%s(p, ", packet_type);
+		put_indented(indent, "n = packet_read_%s(%s, ", packet_type, packet_var);
 		switch (f->type) {
 			case FT_BOOL:
 				/* fallthrough */
@@ -664,10 +700,10 @@ static void read_field(char *packet_name, struct field *f, size_t indent)
 	}
 }
 
-static void read_fields(char *packet_name, struct field *f, size_t indent)
+static void read_fields(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	while (f->type) {
-		read_field(packet_name, f, indent);
+		read_field(packet_name, packet_var, f, indent);
 		f = f->next;
 	}
 }
@@ -679,7 +715,7 @@ void generate_read_function(int id, char *packet_name, struct field *root)
 	printf("\tassert(p->packet_id == 0x%x);\n", id);
 	printf("\tstruct protocol_err err = {0};\n");
 	printf("\tint n;\n");
-	read_fields(packet_name, root, 1);
+	read_fields(packet_name, "p", root, 1);
 	printf("\treturn err;\n");
 	printf("}\n");
 }
