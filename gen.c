@@ -228,16 +228,18 @@ void generate_structs(char *name, struct field *fields)
 static char *ftype_to_packet_type(uint32_t ft)
 {
 	switch (ft) {
-		case FT_DOUBLE:
-			return "double";
 		case FT_BOOL:
 			return "byte";
 		case FT_INT:
 			return "int";
 		case FT_VARINT:
 			return "varint";
+		case FT_LONG:
+			return "long";
 		case FT_FLOAT:
 			return "float";
+		case FT_DOUBLE:
+			return "double";
 		case FT_STRING:
 		case FT_IDENTIFIER:
 			return "string";
