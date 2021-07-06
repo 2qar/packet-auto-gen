@@ -114,7 +114,7 @@ static void put_enum_constant(char *packet_name, char *enum_name, char *constant
 
 static void put_enum(char *packet_name, struct field *f, size_t indent)
 {
-	printf(" {\n");
+	put_indented(indent, "enum {\n");
 	struct enum_constant *c = f->enum_data.constants;
 	while (c != NULL) {
 		put_indent(indent + 1);
@@ -124,59 +124,59 @@ static void put_enum(char *packet_name, struct field *f, size_t indent)
 		printf(",\n");
 		c = c->next;
 	}
-	put_indent(indent);
-	printf("}");
+	put_indented(indent, "} %s;\n", f->name);
 }
 
 static void put_fields(char *packet_name, struct field *, size_t indent);
 
 static void put_struct(char *packet_name, struct field *f, size_t indent)
 {
-	printf(" {\n");
+	put_indented(indent, "struct {\n");
 	put_fields(packet_name, f->struct_fields, indent + 1);
-	put_indent(indent);
-	printf("}");
+	put_indented(indent, "} %s;\n", f->name);
+}
+
+static void put_field(char *packet_name, struct field *f, size_t indent)
+{
+	switch (f->type) {
+		case FT_BYTE_ARRAY:
+			if (f->array.type_field)
+				put_fields(packet_name, f->array.type_field, indent);
+			else
+				put_indented(indent, "uint8_t *%s;\n", f->name);
+			break;
+		case FT_ENUM:
+			if (f->enum_data.type_field->type != FT_STRING)
+				put_enum(packet_name, f, indent);
+			break;
+		case FT_STRUCT:
+			put_struct(packet_name, f, indent);
+			break;
+		case FT_STRUCT_ARRAY:
+			put_indented(indent, "struct %s_%s *%s;\n",
+					packet_name, f->struct_array.struct_name, f->name);
+			break;
+		case FT_ARRAY:
+			put_indented(indent, "%s *%s;\n",
+					ftype_to_ctype(f->array.type_field), f->name);
+			break;
+		case FT_UNION:
+			printf(" {\n");
+			put_fields(packet_name, f->union_data.fields, indent + 1);
+			put_indent(indent);
+			printf("}");
+			break;
+		default:
+			put_indented(indent, "%s %s;\n", ftype_to_ctype(f), f->name);
+			break;
+	}
 }
 
 static void put_fields(char *name, struct field *f, size_t indent)
 {
 	while (f->type) {
-		if (f->type != FT_EMPTY) {
-			put_indent(indent);
-			printf("%s", ftype_to_ctype(f));
-			switch (f->type) {
-				case FT_ENUM:
-					if (f->enum_data.type_field->type != FT_STRING)
-						put_enum(name, f, indent);
-					break;
-				case FT_STRUCT:
-					put_struct(name, f, indent);
-					break;
-				case FT_STRUCT_ARRAY:
-					printf(" %s_%s *", name, f->struct_array.struct_name);
-					break;
-				case FT_ARRAY:
-					printf(" *");
-					break;
-				case FT_UNION:
-					printf(" {\n");
-					put_fields(name, f->union_data.fields, indent + 1);
-					put_indent(indent);
-					printf("}");
-				default:
-					break;
-			}
-
-			if (f->name)
-				printf(" %s", f->name);
-			// FIXME: kinda hacky, maybe have a field_name_prefix() and
-			//        field_name_suffix() function for printing stuff
-			//        before and after the name?
-			if (f->type == FT_UUID)
-				printf("[2]");
-			printf(";\n");
-		}
-
+		if (f->type != FT_EMPTY)
+			put_field(name, f, indent);
 		f = f->next;
 	}
 }
