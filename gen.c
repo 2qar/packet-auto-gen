@@ -148,6 +148,8 @@ static void put_field(char *packet_name, struct field *f, size_t indent)
 		case FT_ENUM:
 			if (f->enum_data.type_field->type != FT_STRING)
 				put_enum(packet_name, f, indent);
+			else
+				put_indented(indent, "char *%s;\n", f->name);
 			break;
 		case FT_STRUCT:
 			put_struct(packet_name, f, indent);
@@ -161,10 +163,15 @@ static void put_field(char *packet_name, struct field *f, size_t indent)
 					ftype_to_ctype(f->array.type_field), f->name);
 			break;
 		case FT_UNION:
-			printf(" {\n");
+			put_indented(indent, "union {\n");
 			put_fields(packet_name, f->union_data.fields, indent + 1);
-			put_indent(indent);
-			printf("}");
+			put_indented(indent, "}");
+			if (f->name)
+				printf(" %s", f->name);
+			printf(";\n");
+			break;
+		case FT_UUID:
+			put_indented(indent, "uint64_t %s[2];\n", f->name);
 			break;
 		default:
 			put_indented(indent, "%s %s;\n", ftype_to_ctype(f), f->name);
