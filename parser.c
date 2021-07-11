@@ -89,6 +89,7 @@ static bool read_byte_array_args(struct arg *args, struct field *field)
 {
 	assert(args != NULL);
 	if (args->type == ARG_TYPE_NUM) {
+		field->array.has_len = true;
 		field->array.array_len = args->num;
 	} else if (args->type == ARG_TYPE_FIELD_TYPE) {
 		field->array.type_field = args->field;
