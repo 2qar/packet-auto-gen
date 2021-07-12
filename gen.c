@@ -316,16 +316,17 @@ static void put_struct_array_len(struct field *f, size_t indent)
 static void write_field(char *packet_name, const char *packet_var, struct field *, size_t indent);
 static void write_fields(char *packet_name, const char *packet_var, struct field *, size_t indent);
 
-static void write_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
+static void put_array(char *packet_name, const char *packet_var, struct field *f, size_t indent,
+		void (*read_write_func)(char *, const char *, struct field *, size_t))
 {
 	if (f->array.has_len) {
 		put_indented(indent, "for (size_t i_%s = 0; i_%s < %zu; ++i_%s) {\n", f->name, f->name, f->array.array_len, f->name);
 	} else {
-		put_indented(indent, "for (%s i_%s = 0; i < ", ftype_to_ctype(f->array.len_field), f->name);
+		put_indented(indent, "for (%s i_%s = 0; i_%s < ", ftype_to_ctype(f->array.len_field), f->name, f->name);
 		put_path(f->array.len_field);
 		printf("%s; ++i_%s) {\n", f->array.len_field->name, f->name);
 	}
-	write_field(packet_name, packet_var, f->array.type_field, indent + 1);
+	read_write_func(packet_name, packet_var, f->array.type_field, indent + 1);
 	put_indented(indent, "}\n");
 }
 
@@ -471,7 +472,7 @@ static void write_field(char *packet_name, const char *packet_var, struct field 
 	bool check_result = false;
 	switch (f->type) {
 		case FT_ARRAY:
-			write_array(packet_name, packet_var, f, indent);
+			put_array(packet_name, packet_var, f, indent, &write_field);
 			break;
 		case FT_BYTE_ARRAY:
 			write_byte_array(packet_name, packet_var, f, indent);
@@ -556,19 +557,6 @@ void generate_write_function(int id, char *name, struct field *f)
 
 static void read_field(char *packet_name, const char *packet_var, struct field *f, size_t indent);
 static void read_fields(char *packet_name, const char *packet_var, struct field *f, size_t indent);
-
-static void read_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
-{
-	if (f->array.has_len) {
-		put_indented(indent, "for (size_t i_%s = 0; i_%s < %zu; ++i_%s) {\n", f->name, f->name, f->array.array_len, f->name);
-	} else {
-		put_indented(indent, "for (%s i_%s = 0; i < ", ftype_to_ctype(f->array.len_field), f->name);
-		put_path(f->array.len_field);
-		printf("%s; ++i_%s) {\n", f->array.len_field->name, f->name);
-	}
-	read_field(packet_name, packet_var, f->array.type_field, indent + 1);
-	put_indented(indent, "}\n");
-}
 
 static void read_byte_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
@@ -685,7 +673,7 @@ static void read_field(char *packet_name, const char *packet_var, struct field *
 {
 	switch (f->type) {
 		case FT_ARRAY:
-			read_array(packet_name, packet_var, f, indent);
+			put_array(packet_name, packet_var, f, indent, &read_field);
 			break;
 		case FT_BYTE_ARRAY:
 			read_byte_array(packet_name, packet_var, f, indent);
