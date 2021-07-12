@@ -66,6 +66,7 @@ struct field {
 	enum field_type type;
 	char *name;
 	struct condition *condition;
+	bool is_array_type_field;
 	union {
 		size_t string_max_len;
 		struct {

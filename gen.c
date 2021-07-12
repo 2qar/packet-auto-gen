@@ -462,7 +462,6 @@ static void put_condition(struct condition *condition)
 
 static void write_field(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
-	char *packet_type = NULL;
 	if (f->condition != NULL) {
 		put_indented(indent, "if (");
 		put_condition(f->condition);
@@ -509,15 +508,18 @@ static void write_field(char *packet_name, const char *packet_var, struct field 
 			printf("%s);\n", f->name);
 			check_result = true;
 			break;
-		default:
-			packet_type = ftype_to_packet_type(f->type);
-			check_result = true;
+		default:;
+			char *packet_type = ftype_to_packet_type(f->type);
+			if (packet_type != NULL) {
+				put_indented(indent, "n = packet_write_%s(%s, ", packet_type, packet_var);
+				put_path(f);
+				printf("%s", f->name);
+				if (f->is_array_type_field)
+					printf("[i_%s]", f->name);
+				printf(");\n");
+				check_result = true;
+			}
 			break;
-	}
-	if (packet_type != NULL) {
-		put_indented(indent, "n = packet_write_%s(%s, ", packet_type, packet_var);
-		put_path(f);
-		printf("%s);\n", f->name);
 	}
 	if (check_result) {
 		put_indented(indent, "if (n < 0)\n");
@@ -681,7 +683,6 @@ static void read_struct_array(char *packet_name, const char *packet_var, struct 
 
 static void read_field(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
-	char *packet_type = NULL;
 	switch (f->type) {
 		case FT_ARRAY:
 			read_array(packet_name, packet_var, f, indent);
@@ -710,26 +711,28 @@ static void read_field(char *packet_name, const char *packet_var, struct field *
 		case FT_STRUCT:
 			read_fields(packet_name, packet_var, f->struct_fields, indent);
 			break;
-		default:
-			packet_type = ftype_to_packet_type(f->type);
+		default:;
+			char *packet_type = ftype_to_packet_type(f->type);
+			if (packet_type != NULL) {
+				put_indented(indent, "n = packet_read_%s(%s, ", packet_type, packet_var);
+				switch (f->type) {
+					case FT_BOOL:
+					case FT_BYTE:
+						printf("(uint8_t *) ");
+						break;
+					default:
+						break;
+				}
+				putchar('&');
+				put_path(f);
+				printf("%s", f->name);
+				if (f->is_array_type_field)
+					printf("[i_%s]", f->name);
+				printf(");\n");
+				put_indented(indent, "if (n < 0)\n");
+				put_indented(indent + 1, "return err;\n");
+			}
 			break;
-	}
-	if (packet_type != NULL) {
-		put_indented(indent, "n = packet_read_%s(%s, ", packet_type, packet_var);
-		switch (f->type) {
-			case FT_BOOL:
-				/* fallthrough */
-			case FT_BYTE:
-				printf("(uint8_t *) ");
-				break;
-			default:
-				break;
-		}
-		putchar('&');
-		put_path(f);
-		printf("%s);\n", f->name);
-		put_indented(indent, "if (n < 0)\n");
-		put_indented(indent + 1, "return err;\n");
 	}
 }
 

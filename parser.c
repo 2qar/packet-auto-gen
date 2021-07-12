@@ -55,6 +55,7 @@ static bool read_array_args(struct arg *args, struct field *field)
 		return true;
 	}
 
+	args->field->is_array_type_field = true;
 	if (args->field->type == FT_STRUCT) {
 		field->type = FT_STRUCT_ARRAY;
 		struct token *struct_name_tok = args->start_token->next;
