@@ -591,8 +591,12 @@ static void create_parent_links_iter(struct field *parent, struct field *f)
 	while (f->type != 0) {
 		f->parent = parent;
 		switch (f->type) {
+		        case FT_ARRAY:
 			case FT_BYTE_ARRAY:
-				f->array.type_field->parent = f->parent;
+				if (f->array.type_field) {
+					f->array.type_field->parent = f->parent;
+					create_parent_links_iter(parent, f->array.type_field);
+				}
 				break;
 			case FT_ENUM:
 				f->enum_data.type_field->parent = f->parent;
