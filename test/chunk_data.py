@@ -27,7 +27,7 @@ b += struct.pack("b", 0x0c)
 b += struct.pack(">H", len(root_name))
 b += struct.pack(f"{len(root_name)}s", bytes(root_name, "ascii"))
 b += struct.pack(">i", 36)
-b += struct.pack(">q", 0) * 256
+b += struct.pack(">q", 0) * 36
 b += struct.pack("b", 0x00)
 # biomes
 b += struct.pack(">i", 1) * 1024
@@ -54,6 +54,9 @@ b += data
 # block entities array len
 b += struct.pack("b", 0)
 
+# packet id
+b = struct.pack("b", 0x22) + b
+# len
 b = varint_bytes(len(b)) + b
 
 with open("chunk_data.bin", "wb") as f:
