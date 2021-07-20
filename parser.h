@@ -38,6 +38,7 @@ enum field_type {
 	FT_EMPTY = 0xced9,
 	// used internally in searching
 	FT_ANY = 18,
+	FT_BYTE_ARRAY_LEN = 19,
 };
 
 // only supports one binary operation
@@ -92,6 +93,7 @@ struct field {
 			struct field *len_field;
 			bool len_is_bitcount;
 		} struct_array;
+		struct field *byte_array_len_field;
 	};
 	struct field *parent;
 	struct field *next;

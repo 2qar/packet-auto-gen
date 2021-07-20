@@ -598,6 +598,9 @@ static void create_parent_links_iter(struct field *parent, struct field *f)
 					create_parent_links_iter(parent, f->array.type_field);
 				}
 				break;
+		        case FT_BYTE_ARRAY_LEN:
+				create_parent_links_iter(parent, f->byte_array_len_field);
+			        break;
 			case FT_ENUM:
 				f->enum_data.type_field->parent = f->parent;
 				break;
@@ -703,6 +706,13 @@ static bool resolve_field_name_refs_iter(struct field *root, struct field *f)
 					f->array.len_field = find_len_field(root, f);
 					if (f->array.len_field == NULL)
 						err = true;
+					else if (f->type == FT_BYTE_ARRAY && f->array.type_field) {
+						struct field *len_field = malloc(sizeof(struct field));
+						memcpy(len_field, f->array.len_field, sizeof(struct field));
+						len_field->next = calloc(1, sizeof(struct field));
+						f->array.len_field->type = FT_BYTE_ARRAY_LEN;
+						f->array.len_field->byte_array_len_field = len_field;
+					}
 				}
 				break;
 			case FT_STRUCT:
@@ -769,6 +779,10 @@ void free_fields(struct field *f)
 					free_fields(f->array.type_field);
 				}
 				break;
+                    	case FT_BYTE_ARRAY_LEN:
+				f->name = NULL;
+				free_fields(f->byte_array_len_field);
+			        break;
 			case FT_ENUM:
 				free(f->enum_data.type_field);
 				struct enum_constant *c = f->enum_data.constants;
