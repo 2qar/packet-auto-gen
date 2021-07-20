@@ -238,7 +238,12 @@ static char *ftype_to_packet_type(uint32_t ft)
 {
 	switch (ft) {
 		case FT_BOOL:
+		case FT_BYTE:
+		case FT_UBYTE:
 			return "byte";
+		case FT_SHORT:
+		case FT_USHORT:
+			return "short";
 		case FT_INT:
 			return "int";
 		case FT_VARINT:
@@ -686,6 +691,9 @@ static void read_field(char *packet_name, const char *packet_var, struct field *
 		case FT_BYTE_ARRAY:
 			read_byte_array(packet_name, packet_var, f, indent);
 			break;
+	        case FT_BYTE_ARRAY_LEN:
+			read_field(packet_name, packet_var, f->byte_array_len_field, indent);
+			break;
 		case FT_ENUM:
 			read_field(packet_name, packet_var, f->enum_data.type_field, indent);
 			break;
@@ -716,6 +724,12 @@ static void read_field(char *packet_name, const char *packet_var, struct field *
 					case FT_BYTE:
 						printf("(uint8_t *) ");
 						break;
+					case FT_SHORT:
+						printf("(uint16_t *) ");
+						break;
+				        case FT_LONG:
+						printf("(uint64_t *) ");
+					        break;
 					default:
 						break;
 				}
