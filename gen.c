@@ -259,6 +259,8 @@ static char *ftype_to_packet_type(uint32_t ft)
 			return "string";
 		case FT_UUID:
 			return "bytes";
+		case FT_NBT:
+			return "nbt";
 		default:
 			return NULL;
 	}
@@ -516,12 +518,6 @@ static void write_field(char *packet_name, const char *packet_var, struct field 
 			break;
 		case FT_EMPTY:
 			break;
-		case FT_NBT:
-			put_indented(indent, "n = packet_write_nbt(%s, ", packet_var);
-			put_path(f);
-			printf("%s);\n", f->name);
-			check_result = true;
-			break;
 		default:;
 			char *packet_type = ftype_to_packet_type(f->type);
 			if (packet_type != NULL) {
@@ -733,7 +729,8 @@ static void read_field(char *packet_name, const char *packet_var, struct field *
 					default:
 						break;
 				}
-				putchar('&');
+				if (f->type != FT_NBT)
+					putchar('&');
 				put_path(f);
 				printf("%s", f->name);
 				if (f->is_array_type_field)

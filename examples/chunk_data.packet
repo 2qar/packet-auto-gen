@@ -15,3 +15,5 @@ ByteArray(Array(struct chunk_section, bitcount(primary_bit_mask))) data {
 	VarInt data_array_len
 	Array(Long) data_array
 }
+VarInt block_entities_len
+Array(NBT) block_entities
