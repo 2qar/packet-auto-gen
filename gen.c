@@ -342,19 +342,18 @@ static void write_fields(char *packet_name, const char *packet_var, struct field
 static void write_byte_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	if (f->array.type_field) {
-		put_indented(indent, "struct packet *byte_array_pack = malloc(sizeof(struct packet));\n");
-		put_indented(indent, "packet_init(byte_array_pack);\n");
-		put_indented(indent, "byte_array_pack->packet_mode = PACKET_MODE_WRITE;\n");
-		write_fields(packet_name, "byte_array_pack", f->array.type_field, indent);
+		put_indented(indent, "struct packet byte_array_pack;\n");
+		put_indented(indent, "packet_init(&byte_array_pack);\n");
+		put_indented(indent, "byte_array_pack.packet_mode = PACKET_MODE_WRITE;\n");
+		write_fields(packet_name, "(&byte_array_pack)", f->array.type_field, indent);
 		put_indent(indent);
 		put_path(f->array.len_field);
-		printf("%s = byte_array_pack->packet_len;\n", f->array.len_field->name);
+		printf("%s = byte_array_pack.packet_len;\n", f->array.len_field->name);
 		write_field(packet_name, packet_var, f->array.len_field->byte_array_len_field, indent);
-		put_indented(indent, "n = packet_write_bytes(%s, byte_array_pack->packet_len, byte_array_pack->data);\n", packet_var);
+		put_indented(indent, "n = packet_write_bytes(%s, byte_array_pack.packet_len, byte_array_pack.data);\n", packet_var);
 		put_indented(indent, "if (n < 0)\n");
 		put_indented(indent + 1, "goto err;\n");
-		put_indented(indent, "free(byte_array_pack->data);\n");
-		put_indented(indent, "free(byte_array_pack);\n");
+		put_indented(indent, "free(byte_array_pack.data);\n");
 	} else {
 		put_indented(indent, "n = packet_write_bytes(%s, %zu, ", packet_var, f->array.array_len);
 		put_path(f);
