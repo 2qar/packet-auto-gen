@@ -566,6 +566,21 @@ void generate_write_function(int id, char *name, struct field *f)
 static void read_field(char *packet_name, const char *packet_var, struct field *f, size_t indent);
 static void read_fields(char *packet_name, const char *packet_var, struct field *f, size_t indent);
 
+static void read_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
+{
+	put_indent(indent);
+	put_path(f);
+	printf("%s = calloc(", f->name);
+	if (f->array.has_len)
+		printf("%zu", f->array.array_len);
+	else {
+		put_path(f->array.len_field);
+		printf("%s", f->array.len_field->name);
+	}
+	printf(", sizeof(%s));\n", ftype_to_ctype(f));
+	put_array(packet_name, packet_var, f, indent, &read_field);
+}
+
 static void read_byte_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	if (f->array.type_field) {
@@ -681,7 +696,7 @@ static void read_field(char *packet_name, const char *packet_var, struct field *
 {
 	switch (f->type) {
 		case FT_ARRAY:
-			put_array(packet_name, packet_var, f, indent, &read_field);
+			read_array(packet_name, packet_var, f, indent);
 			break;
 		case FT_BYTE_ARRAY:
 			read_byte_array(packet_name, packet_var, f, indent);
