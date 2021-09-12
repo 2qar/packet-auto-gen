@@ -19,7 +19,7 @@ int main()
 	player_info.players = &player;
 
 	struct test t = {0};
-	test_init(&t);
+	test_init(&t, PACKET_FILE_PATH);
 	if (t.conn == NULL)
 		return 1;
 

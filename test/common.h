@@ -8,5 +8,5 @@ struct test {
 	struct conn *conn;
 };
 
-void test_init(struct test *);
+void test_init(struct test *, char *packet_file_path);
 void test_cleanup(struct test *);

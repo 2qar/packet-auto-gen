@@ -1,15 +1,16 @@
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "common.h"
 
-void test_init(struct test *t)
+void test_init(struct test *t, char *packet_file_path)
 {
-	t->packet_file_path = strdup("/tmp/packet-XXXXXX");
-	t->packet_fd = mkstemp(t->packet_file_path);
+	t->packet_file_path = packet_file_path;
+	t->packet_fd = open(t->packet_file_path, O_RDWR | O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
 	if (t->packet_fd < 0) {
-		perror("mkstemp");
+		perror("open");
 		return;
 	}
 
@@ -22,7 +23,6 @@ void test_init(struct test *t)
 void test_cleanup(struct test *t)
 {
 	close(t->packet_fd);
-	free(t->packet_file_path);
 	if (t->conn != NULL) {
 		packet_free(t->conn->packet);
 		free(t->conn);

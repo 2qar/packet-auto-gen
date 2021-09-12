@@ -10,7 +10,7 @@ int main()
 	string_enum.test = 1;
 
 	struct test t = {0};
-	test_init(&t);
+	test_init(&t, PACKET_FILE_PATH);
 	if (t.conn == NULL)
 		return 1;
 

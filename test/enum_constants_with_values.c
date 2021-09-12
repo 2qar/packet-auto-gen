@@ -21,7 +21,7 @@ int main()
 	enum_struct.dimension = ENUM_CONSTANTS_WITH_VALUES_DIMENSION_END;
 
 	struct test t = {0};
-	test_init(&t);
+	test_init(&t, PACKET_FILE_PATH);
 	if (t.conn == NULL)
 		return 1;
 
