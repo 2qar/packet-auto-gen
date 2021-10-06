@@ -601,6 +601,7 @@ static void read_byte_array(char *packet_name, const char *packet_var, struct fi
 		}
 		printf(";\n");
 		read_fields(packet_name, "(&byte_array_pack)", f->array.type_field, indent);
+		put_indented(indent, "%s->index += byte_array_pack.packet_len;\n", packet_var);
 	} else {
 		put_indented(indent, "if (!packet_read_bytes(%s, %zu, ", packet_var, f->array.array_len);
 		put_path(f);
