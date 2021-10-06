@@ -1,4 +1,6 @@
+#include <fcntl.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "chunk_data.h"
@@ -6,6 +8,43 @@
 #define BIOMES_LEN 1024
 #define BIOME_PLAINS 1
 #define BLOCKS_PER_SECTION 4096
+
+bool heightmaps_equal(struct nbt *n1, struct nbt *n2)
+{
+	assert(n1->tag == TAG_Compound && n2->tag == n1->tag);
+	struct nbt *m1 = nbt_get(n1, TAG_Long_Array, "MOTION_BLOCKING");
+	struct nbt *m2 = nbt_get(n2, TAG_Long_Array, "MOTION_BLOCKING");
+	assert(m1 != NULL && m2 != NULL);
+	bool equal = m1->data.array->len == m2->data.array->len &&
+		!memcmp(m1->data.array->data.bytes, m2->data.array->data.bytes, m1->data.array->len * sizeof(int64_t));
+	return equal;
+}
+
+bool sections_equal(size_t s_len, struct chunk_data_chunk_section *s1, struct chunk_data_chunk_section *s2)
+{
+	size_t i = 0;
+	bool equal = true;
+	while (i < s_len && equal) {
+		equal = s1[i].block_count == s2[i].block_count &&
+			s1[i].bits_per_block == s2[i].bits_per_block &&
+			s1[i].palette_len == s2[i].palette_len &&
+			!memcmp(s1[i].palette, s2[i].palette, s1[i].palette_len * sizeof(int32_t)) &&
+			s1[i].data_array_len == s2[i].data_array_len &&
+			!memcmp(s1[i].data_array, s2[i].data_array, s1[i].data_array_len * sizeof(int64_t));
+		++i;
+	}
+	return equal;
+}
+
+bool chunk_equal(struct chunk_data *c1, struct chunk_data *c2)
+{
+	return c1->chunk_x == c2->chunk_x &&
+		c1->chunk_z == c2->chunk_z &&
+		c1->full_chunk == c2->full_chunk &&
+		c1->primary_bit_mask == c2->primary_bit_mask &&
+		heightmaps_equal(c1->heightmaps, c2->heightmaps) &&
+		sections_equal(1, c1->data, c2->data);
+}
 
 int main()
 {
@@ -64,7 +103,22 @@ int main()
 	else if (!conn_write_packet(t.conn))
 		return 1;
 
-	printf("%s\n", t.packet_file_path);
+	close(t.packet_fd);
+	t.packet_fd = open(PACKET_FILE_PATH, O_RDONLY);
+	t.conn->sfd = t.packet_fd;
+
+	if (!conn_packet_read_header(t.conn)) {
+		fprintf(stderr, "failed to read header?\n");
+		return 1;
+	}
+	struct chunk_data read_chunk = {0};
+	r = protocol_read_chunk_data(t.conn->packet, &read_chunk);
+	if (!chunk_equal(&chunk, &read_chunk)) {
+		fprintf(stderr, "read chunk differs from provided chunk\n");
+		return 1;
+	}
+
+	printf("%s\n", PACKET_FILE_PATH);
 	test_cleanup(&t);
 	return 0;
 }
