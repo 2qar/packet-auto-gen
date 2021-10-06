@@ -42,9 +42,11 @@ int main()
 	chunk.full_chunk = true;
 	chunk.primary_bit_mask = 0x1;
 	chunk.heightmaps = nbt_new(TAG_Long_Array, "MOTION_BLOCKING");
-	chunk.heightmaps->data.array = malloc(sizeof(struct nbt_array));
-	chunk.heightmaps->data.array->len = 36;
-	chunk.heightmaps->data.array->data.longs = calloc(36, sizeof(int64_t));
+	struct nbt *motion_blocking = nbt_get(chunk.heightmaps, TAG_Long_Array, "MOTION_BLOCKING");
+	motion_blocking->data.array = malloc(sizeof(struct nbt_array));
+	motion_blocking->data.array->type = TAG_Long_Array;
+	motion_blocking->data.array->len = 36;
+	motion_blocking->data.array->data.longs = calloc(36, sizeof(int64_t));
 	chunk.biomes = malloc(sizeof(int32_t) * BIOMES_LEN);
 	for (size_t i = 0; i < BIOMES_LEN; ++i)
 		chunk.biomes[i] = BIOME_PLAINS;
