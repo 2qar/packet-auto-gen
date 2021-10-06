@@ -743,8 +743,7 @@ static void read_field(char *packet_name, const char *packet_var, struct field *
 					default:
 						break;
 				}
-				if (f->type != FT_NBT)
-					putchar('&');
+				putchar('&');
 				put_path(f);
 				printf("%s", f->name);
 				if (f->is_array_type_field)
