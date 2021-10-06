@@ -584,26 +584,18 @@ static void read_array(char *packet_name, const char *packet_var, struct field *
 static void read_byte_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	if (f->array.type_field) {
-		put_indented(indent, "struct packet *byte_array_pack = malloc(sizeof(struct packet));\n");
-		put_indented(indent, "packet_init(byte_array_pack);\n");
-		put_indented(indent, "byte_array_pack->packet_mode = PACKET_MODE_READ;\n");
-		put_indented(indent, "if (!packet_read_bytes(%s, ", packet_var);
+		put_indented(indent, "struct packet byte_array_pack = {0};\n");
+		put_indented(indent, "byte_array_pack.packet_mode = PACKET_MODE_READ;\n");
+		put_indented(indent, "byte_array_pack.data = %s->data + %s->index;\n", packet_var, packet_var);
+		put_indented(indent, "byte_array_pack.packet_len = ");
 		if (f->array.has_len)
 			printf("%zu", f->array.array_len);
 		else {
 			put_path(f->array.len_field);
 			printf("%s", f->array.len_field->name);
 		}
-		printf(", ");
-		put_path(f);
-		printf("%s)) {\n", f->name);
-		put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_PACKET;\n");
-		put_indented(indent + 1, "err.packet_err = PACKET_TOO_BIG;\n");
-		put_indented(indent + 1, "return err;\n");
-		put_indented(indent, "}\n");
-		read_fields(packet_name, "byte_array_pack", f->array.type_field, indent);
-		put_indented(indent, "free(byte_array_pack->data);\n");
-		put_indented(indent, "free(byte_array_pack);\n");
+		printf(";\n");
+		read_fields(packet_name, "(&byte_array_pack)", f->array.type_field, indent);
 	} else {
 		put_indented(indent, "if (!packet_read_bytes(%s, %zu, ", packet_var, f->array.array_len);
 		put_path(f);
