@@ -573,6 +573,12 @@ static void read_fields(char *packet_name, const char *packet_var, struct field 
 
 static void read_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
+	if (!f->array.has_len) {
+		put_indented(indent, "if (");
+		put_full_field_name(f->array.len_field);
+		printf(" > 0)\n");
+		put_indent(indent);
+	}
 	put_indent(indent);
 	put_path(f);
 	printf("%s = calloc(", f->name);
@@ -680,12 +686,11 @@ static void read_union(char *packet_name, const char *packet_var, struct field *
 static void read_struct_array(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	put_struct_array_len(f, indent);
-	put_indent(indent);
+	put_indented(indent, "if (%s_len > 0)\n", f->name);
+	put_indent(indent + 1);
 	put_path(f);
 	printf("%s = calloc(%s_len, sizeof(struct %s_%s));\n", f->name, f->name, packet_name, f->struct_array.struct_name);
-	put_indented(indent, "for (%s i_%s = 0; i_%s < ", ftype_to_ctype(f->struct_array.len_field), f->name,  f->name);
-	put_path(f);
-	printf("%s_len; ++i_%s) {\n", f->name, f->name);
+	put_indented(indent, "for (%s i_%s = 0; i_%s < %s_len; ++i_%s) {\n", ftype_to_ctype(f->struct_array.len_field), f->name,  f->name, f->name, f->name);
 	read_fields(packet_name, packet_var, f->struct_array.fields, indent + 1);
 	put_indented(indent, "}\n");
 }
