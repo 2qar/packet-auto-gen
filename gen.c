@@ -287,6 +287,14 @@ static void put_path(struct field *f)
 	put_path_iter(f->parent);
 }
 
+static void put_full_field_name(struct field *f)
+{
+	put_path(f);
+	printf("%s", f->name);
+	if (f->is_array_type_field)
+		printf("[i_%s]", f->name);
+}
+
 #define put_input_error(indent, input_err, field) \
 	put_indented(indent, "err.err_type = PROTOCOL_ERR_INPUT;\n"); \
 	put_indented(indent, "err.input_err.err_type = %s;\n", #input_err); \
@@ -521,10 +529,7 @@ static void write_field(char *packet_name, const char *packet_var, struct field 
 			char *packet_type = ftype_to_packet_type(f->type);
 			if (packet_type != NULL) {
 				put_indented(indent, "n = packet_write_%s(%s, ", packet_type, packet_var);
-				put_path(f);
-				printf("%s", f->name);
-				if (f->is_array_type_field)
-					printf("[i_%s]", f->name);
+				put_full_field_name(f);
 				printf(");\n");
 				check_result = true;
 			}
@@ -610,8 +615,8 @@ static void read_byte_array(char *packet_name, const char *packet_var, struct fi
 static void read_varint(const char *packet_var, struct field *f, size_t indent)
 {
 	put_indented(indent, "n = packet_read_varint(%s, (int *) &", packet_var);
-	put_path(f);
-	printf("%s);\n", f->name);
+	put_full_field_name(f);
+	printf(");\n");
 	put_indented(indent, "if (n == PACKET_VARINT_TOO_LONG) {\n");
 	put_input_error(indent + 1, PROTOCOL_INPUT_ERR_VARINT_RANGE, f);
 	put_indented(indent, "} else if (n == PACKET_TOO_BIG) {\n");
@@ -736,10 +741,7 @@ static void read_field(char *packet_name, const char *packet_var, struct field *
 						break;
 				}
 				putchar('&');
-				put_path(f);
-				printf("%s", f->name);
-				if (f->is_array_type_field)
-					printf("[i_%s]", f->name);
+				put_full_field_name(f);
 				printf(");\n");
 				put_indented(indent, "if (n < 0)\n");
 				put_indented(indent + 1, "return err;\n");
