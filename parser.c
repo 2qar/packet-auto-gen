@@ -302,7 +302,8 @@ static struct token *read_field_name(struct token *name_tok, struct field *field
 			break;
 		case FT_ARRAY:
 		case FT_BYTE_ARRAY:
-			field->array.type_field->name = field->name;
+			if (field->array.type_field)
+				field->array.type_field->name = field->name;
 			break;
 		default:
 			break;
