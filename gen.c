@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -34,6 +35,26 @@ void put_includes()
 
 static char *ftype_to_ctype(struct field *f)
 {
+	static char *primitive_ftype_ctypes[] = {
+		[FT_BOOL] = "bool",
+		[FT_BYTE] = "int8_t",
+		[FT_UBYTE] = "uint8_t",
+		[FT_SHORT] = "int16_t",
+		[FT_USHORT] = "uint16_t",
+		[FT_INT] = "int32_t",
+		[FT_LONG] = "int64_t",
+		[FT_FLOAT] = "float",
+		[FT_DOUBLE] = "double",
+		[FT_STRING] = "char *",
+		[FT_CHAT] = "char *",
+		[FT_IDENTIFIER] = "char *",
+		[FT_VARINT] = "int32_t",
+		[FT_VARLONG] = "int64_t",
+		[FT_NBT] = "struct nbt *",
+		[FT_POSITION] = "int64_t",
+		[FT_ANGLE] = "uint8_t",
+		[FT_UUID] = "uint64_t",
+	};
 	switch (f->type) {
 		case FT_ARRAY:
 		case FT_BYTE_ARRAY:
@@ -45,36 +66,14 @@ static char *ftype_to_ctype(struct field *f)
 				return "char*";
 			else
 				return "enum";
-		case FT_BOOL:
-			return "bool";
-		case FT_UBYTE:
-			return "uint8_t";
-		case FT_SHORT:
-			return "int16_t";
-		case FT_INT:
-		case FT_VARINT:
-			return "int32_t";
-		case FT_LONG:
-			return "int64_t";
-		case FT_FLOAT:
-			return "float";
-		case FT_DOUBLE:
-			return "double";
-		case FT_STRUCT:
-		case FT_STRUCT_ARRAY:
-			return "struct";
-		case FT_STRING:
-		case FT_IDENTIFIER:
-		case FT_CHAT:
-			return "char*";
-		case FT_UUID:
-			return "uint64_t";
-		case FT_UNION:
-			return "union";
-		case FT_NBT:
-			return "struct nbt*";
-		default:
+		case FT_ENTITY_METADATA:
+		case FT_SLOT:
+			// TODO
 			return NULL;
+		default:
+			assert(f->type < sizeof(primitive_ftype_ctypes) / sizeof(char *)
+					&& primitive_ftype_ctypes[f->type] != NULL);
+			return primitive_ftype_ctypes[f->type];
 	}
 }
 
