@@ -103,9 +103,7 @@ int main()
 	else if (!conn_write_packet(t.conn))
 		return 1;
 
-	close(t.packet_fd);
-	t.packet_fd = open(PACKET_FILE_PATH, O_RDONLY);
-	t.conn->sfd = t.packet_fd;
+	test_read_init(&t, PACKET_FILE_PATH);
 
 	if (!conn_packet_read_header(t.conn)) {
 		fprintf(stderr, "failed to read header?\n");

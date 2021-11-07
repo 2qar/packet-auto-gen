@@ -67,9 +67,12 @@ static char *ftype_to_ctype(struct field *f)
 			else
 				return "enum";
 		case FT_ENTITY_METADATA:
-		case FT_SLOT:
-			// TODO
 			return NULL;
+		case FT_SLOT:
+			if (f->is_array_type_field)
+				return "struct slot";
+			else
+				return "struct slot *";
 		default:
 			assert(f->type < sizeof(primitive_ftype_ctypes) / sizeof(char *)
 					&& primitive_ftype_ctypes[f->type] != NULL);
@@ -258,6 +261,8 @@ static char *ftype_to_packet_type(uint32_t ft)
 			return "string";
 		case FT_UUID:
 			return "bytes";
+		case FT_SLOT:
+			return "slot";
 		case FT_NBT:
 			return "nbt";
 		default:
@@ -450,6 +455,17 @@ static void write_string(const char *packet_var, struct field *f, size_t indent)
 	printf("%s);\n", f->name);
 }
 
+static void write_slot(const char *packet_var, struct field *f, size_t indent)
+{
+	put_indented(indent, "n = packet_write_slot(%s, ", packet_var);
+	if (f->is_array_type_field)
+		putchar('&');
+	put_full_field_name(f);
+	printf(");\n");
+	put_indented(indent, "if (n < 0)\n");
+	put_indented(indent + 1, "goto err;\n");
+}
+
 static void write_uuid(const char *packet_var, struct field *f, size_t indent)
 {
 	put_indented(indent, "n = packet_write_bytes(%s, 16, ", packet_var);
@@ -517,6 +533,9 @@ static void write_field(char *packet_name, const char *packet_var, struct field 
 		case FT_CHAT:
 			write_string(packet_var, f, indent);
 			check_result = true;
+			break;
+		case FT_SLOT:
+			write_slot(packet_var, f, indent);
 			break;
 		case FT_UUID:
 			write_uuid(packet_var, f, indent);
@@ -694,6 +713,24 @@ static void read_struct_array(char *packet_name, const char *packet_var, struct 
 	put_indented(indent, "}\n");
 }
 
+static void read_slot(char *packet_name, const char *packet_var, struct field *f, size_t indent)
+{
+	(void) packet_name;
+	if (!f->is_array_type_field) {
+		put_indent(indent);
+		put_full_field_name(f);
+		printf(" = calloc(1, sizeof(struct slot));\n");
+	}
+	put_indented(indent, "n = packet_read_slot(%s, ", packet_var);
+	if (f->is_array_type_field) {
+		putchar('&');
+	}
+	put_full_field_name(f);
+	printf(");\n");
+	put_indented(indent, "if (n < 0)\n");
+	put_indented(indent + 1, "return err;\n");
+}
+
 static void read_field(char *packet_name, const char *packet_var, struct field *f, size_t indent)
 {
 	switch (f->type) {
@@ -726,6 +763,9 @@ static void read_field(char *packet_name, const char *packet_var, struct field *
 			break;
 		case FT_STRUCT:
 			read_fields(packet_name, packet_var, f->struct_fields, indent);
+			break;
+		case FT_SLOT:
+			read_slot(packet_name, packet_var, f, indent);
 			break;
 		default:;
 			char *packet_type = ftype_to_packet_type(f->type);
