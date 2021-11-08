@@ -367,9 +367,15 @@ static void write_byte_array(char *packet_name, const char *packet_var, struct f
 		put_indented(indent + 1, "goto err;\n");
 		put_indented(indent, "free(byte_array_pack.data);\n");
 	} else {
-		put_indented(indent, "n = packet_write_bytes(%s, %zu, ", packet_var, f->array.array_len);
-		put_path(f);
-		printf("%s);\n", f->name);
+		put_indented(indent, "n = packet_write_bytes(%s, ", packet_var);
+		if (f->array.has_len) {
+			printf("%zu", f->array.array_len);
+		} else {
+			put_full_field_name(f->array.len_field);
+		}
+		printf(", ");
+		put_full_field_name(f);
+		printf(");\n");
 	}
 }
 
@@ -627,9 +633,19 @@ static void read_byte_array(char *packet_name, const char *packet_var, struct fi
 		read_fields(packet_name, "(&byte_array_pack)", f->array.type_field, indent);
 		put_indented(indent, "%s->index += byte_array_pack.packet_len;\n", packet_var);
 	} else {
-		put_indented(indent, "if (!packet_read_bytes(%s, %zu, ", packet_var, f->array.array_len);
-		put_path(f);
-		printf("%s)) {\n", f->name);
+		put_indented(indent, "const size_t %s_len = ", f->name);
+		if (f->array.has_len) {
+			printf("%zu", f->array.array_len);
+		} else {
+			put_full_field_name(f->array.len_field);
+		}
+		printf(";\n");
+		put_indent(indent);
+		put_full_field_name(f);
+		printf(" = malloc(%s_len);\n", f->name);
+		put_indented(indent, "if (!packet_read_bytes(%s, %s_len, ", packet_var, f->name);
+		put_full_field_name(f);
+		printf(")) {\n");
 		put_indented(indent + 1, "err.err_type = PROTOCOL_ERR_PACKET;\n");
 		put_indented(indent + 1, "err.packet_err = PACKET_TOO_BIG;\n");
 		put_indented(indent + 1, "return err;\n");

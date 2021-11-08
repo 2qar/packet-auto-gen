@@ -51,4 +51,9 @@ const uint32_t valid_types_with_args[] = {
 	0,
 };
 
+const uint32_t types_with_optional_args[] = {
+	FT_BYTE_ARRAY,
+	0,
+};
+
 #endif // PARSER_CONF_H

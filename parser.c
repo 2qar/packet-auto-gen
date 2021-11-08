@@ -243,6 +243,19 @@ static struct token *read_type_args(struct token *type, struct field *field)
 	}
 }
 
+static bool set_default_type_args(struct token *type, struct field *field)
+{
+	switch (field->type) {
+		case FT_BYTE_ARRAY:
+			field->array.has_len = false;
+			break;
+		default:
+			perr("'", type, "' is configured to have optional args, but it has no default values. FIXME\n");
+			return false;
+	}
+	return true;
+}
+
 static struct token *read_field_type(struct token *type, struct field *field)
 {
 	uint32_t field_hash = str_fnv1a(type->start, type->len);
@@ -252,8 +265,9 @@ static struct token *read_field_type(struct token *type, struct field *field)
 	}
 
 	bool has_args = valid_type(field_hash, valid_types_with_args);
+	bool args_optional = valid_type(field_hash, types_with_optional_args);
 	bool has_paren = token_equals(type->next, "(");
-	if (has_args && !has_paren) {
+	if (has_args && !has_paren && !args_optional) {
 		perr("expected args for type '", type, "'\n");
 		return NULL;
 	} else if (!has_args && has_paren) {
@@ -262,8 +276,13 @@ static struct token *read_field_type(struct token *type, struct field *field)
 	}
 
 	field->type = field_hash;
-	if (has_args) {
-		return read_type_args(type, field);
+	struct token *name_tok = NULL;
+	if (has_args && has_paren) {
+		name_tok = read_type_args(type, field);
+	} else if (has_args && !has_paren) {
+		if (set_default_type_args(type, field)) {
+			name_tok = type->next;
+		}
 	} else {
 		switch (field->type) {
 			case FT_CHAT:
@@ -275,8 +294,9 @@ static struct token *read_field_type(struct token *type, struct field *field)
 			default:
 				break;
 		}
-		return type->next;
+		name_tok = type->next;
 	}
+	return name_tok;
 }
 
 static struct token *read_field_name(struct token *name_tok, struct field *field)
