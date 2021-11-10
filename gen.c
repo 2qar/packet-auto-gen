@@ -251,6 +251,7 @@ static char *ftype_to_packet_type(uint32_t ft)
 		case FT_VARINT:
 			return "varint";
 		case FT_LONG:
+		case FT_POSITION:
 			return "long";
 		case FT_FLOAT:
 			return "float";
@@ -796,6 +797,7 @@ static void read_field(char *packet_name, const char *packet_var, struct field *
 						printf("(uint16_t *) ");
 						break;
 				        case FT_LONG:
+					case FT_POSITION:
 						printf("(uint64_t *) ");
 					        break;
 					default:
