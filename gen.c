@@ -236,6 +236,20 @@ void generate_structs(char *name, struct field *fields)
 	generate_struct(name, fields);
 }
 
+static void put_function_signature(char *packet_name, char *read_write)
+{
+	printf("struct protocol_err protocol_%s_%s(struct packet *p, struct %s *pack)",
+			read_write, packet_name, packet_name);
+}
+
+void put_function_signatures(char *packet_name)
+{
+	put_function_signature(packet_name, "write");
+	printf(";\n");
+	put_function_signature(packet_name, "read");
+	printf(";\n");
+}
+
 static char *ftype_to_packet_type(uint32_t ft)
 {
 	switch (ft) {
@@ -578,9 +592,10 @@ static void write_fields(char *packet_name, const char *packet_var, struct field
 	}
 }
 
-void generate_write_function(int id, char *name, struct field *f)
+static void generate_write_function(int id, char *name, struct field *f)
 {
-	printf("struct protocol_err protocol_write_%s(struct packet *p, struct %s *pack) {\n", name, name);
+	put_function_signature(name, "write");
+	printf(" {\n");
 	printf("\tmake_packet(p, 0x%x);\n", id);
 	printf("\tstruct protocol_err err = {0};\n");
 	printf("\tint n;\n");
@@ -821,9 +836,10 @@ static void read_fields(char *packet_name, const char *packet_var, struct field 
 	}
 }
 
-void generate_read_function(int id, char *packet_name, struct field *root)
+static void generate_read_function(int id, char *packet_name, struct field *root)
 {
-	printf("struct protocol_err protocol_read_%s(struct packet *p, struct %s *pack) {\n", packet_name, packet_name);
+	put_function_signature(packet_name, "read");
+	printf(" {\n");
 	printf("\tassert(p->packet_mode == PACKET_MODE_READ);\n");
 	printf("\tassert(p->packet_id == 0x%x);\n", id);
 	printf("\tstruct protocol_err err = {0};\n");
@@ -831,4 +847,11 @@ void generate_read_function(int id, char *packet_name, struct field *root)
 	read_fields(packet_name, "p", root, 1);
 	printf("\treturn err;\n");
 	printf("}\n");
+}
+
+void generate_source(int id, char *packet_name, struct field *head)
+{
+	printf("#include \"%s.h\"\n", packet_name);
+	generate_write_function(id, packet_name, head);
+	generate_read_function(id, packet_name, head);
 }

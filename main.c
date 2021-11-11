@@ -52,6 +52,17 @@ char *packet_name(const char *packet_filename)
 	return name;
 }
 
+static char *make_path(const char *prefix, char *filename, const char *extension)
+{
+	if (prefix == NULL || prefix[0] == '\0') {
+		prefix = ".";
+	}
+	size_t path_len = strlen(prefix) + strlen(filename) + strlen(extension) + 2;
+	char *path = calloc(path_len, sizeof(char));
+	snprintf(path, path_len, "%s/%s%s", prefix, filename, extension);
+	return path;
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -96,11 +107,29 @@ int main(int argc, char *argv[])
 	if (resolve_field_name_refs(head))
 		return 1;
 
+	char *source_path = make_path(NULL, name, ".c");
+	char *header_path = make_path(NULL, name, ".h");
+
+	FILE *header_file = freopen(header_path, "w", stdout);
+	if (header_file == NULL) {
+		perror("freopen");
+		return 1;
+	}
 	put_id(name, id);
 	put_includes();
 	generate_structs(name, head);
-	generate_write_function(id, name, head);
-	generate_read_function(id, name, head);
+	put_function_signatures(name);
+	fclose(header_file);
+	free(header_path);
+
+	FILE *source_file = freopen(source_path, "w", stdout);
+	if (source_file == NULL) {
+		perror("freopen");
+		return 1;
+	}
+	generate_source(id, name, head);
+	fclose(source_file);
+	free(source_path);
 
 	free_fields(head);
 	free(bytes);
