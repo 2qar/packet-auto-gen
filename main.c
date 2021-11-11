@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "lexer.h"
@@ -63,13 +65,39 @@ static char *make_path(const char *prefix, char *filename, const char *extension
 	return path;
 }
 
+static void usage()
+{
+	fprintf(stderr, "usage: pc [-o output_dir] PACKET_FILE\n");
+}
+
 int main(int argc, char *argv[])
 {
-	if (argc < 2) {
-		fprintf(stderr, "usage: pc PACKET_FILE\n");
-		return 1;
+	char *output_dir = NULL;
+	int opt;
+	struct stat output_dir_stat;
+	while ((opt = getopt(argc, argv, "o:")) != -1) {
+		switch (opt) {
+			case 'o':
+				output_dir = optarg;
+				break;
+			default:
+				usage();
+				return 1;
+		}
 	}
-	char *packet_filename = argv[1];
+	if (optind >= argc) {
+		usage();
+		return 1;
+	} else if (output_dir != NULL) {
+		if (stat(output_dir, &output_dir_stat) < 0) {
+			perror("stat");
+			return 1;
+		} else if (!S_ISDIR(output_dir_stat.st_mode)) {
+			fprintf(stderr, "\"%s\" isn't a directory\n", output_dir);
+			return 1;
+		}
+	}
+	char *packet_filename = argv[optind];
 
 	char *bytes = NULL;
 	size_t bytes_len = file_bytes(packet_filename, &bytes);
@@ -107,8 +135,8 @@ int main(int argc, char *argv[])
 	if (resolve_field_name_refs(head))
 		return 1;
 
-	char *source_path = make_path(NULL, name, ".c");
-	char *header_path = make_path(NULL, name, ".h");
+	char *source_path = make_path(output_dir, name, ".c");
+	char *header_path = make_path(output_dir, name, ".h");
 
 	FILE *header_file = freopen(header_path, "w", stdout);
 	if (header_file == NULL) {
