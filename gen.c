@@ -23,14 +23,16 @@ void put_id(const char *packet_filename, int id)
 
 void put_includes()
 {
-	puts("#include <assert.h>");
-	puts("#include <stdbool.h>");
-	puts("#include <string.h>");
-	puts("#include <stdint.h>");
-	puts("#include <stdio.h>");
-	puts("#include \"protocol_types.h\"");
-	printf("#include \"%s/conn.h\"\n", CHOWDER_DIR);
-	printf("#include \"%s/packet.h\"\n", CHOWDER_DIR);
+	puts(
+		"#include <assert.h>\n"
+		"#include <stdbool.h>\n"
+		"#include <string.h>\n"
+		"#include <stdint.h>\n"
+		"#include <stdio.h>\n"
+		"#include \"protocol_types.h\"\n"
+		"#include \"conn.h\"\n"
+		"#include \"packet.h\""
+	);
 }
 
 static char *ftype_to_ctype(struct field *f)
