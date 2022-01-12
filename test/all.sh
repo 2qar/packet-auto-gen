@@ -1,25 +1,11 @@
 #!/bin/bash
 
-err() {
-	echo "$0: $1" 2>&1
-	exit 1
-}
-
-if [ "$(basename $(pwd))" != "test" ]; then
-	err "must be run in test/"
-fi
-
-cd ../
 make || exit 1
-cd test
-
-if ! [ -d "bin" ]; then
-	mkdir bin
-fi
-make || exit 1
-
-files="$(ls -1 *.c | sed 's/common.c//g')"
-for filename in $files; do
-	packet_name=$(echo "$filename" | sed 's/\.c//g')
-	./test.sh "$packet_name"
+ls -1 *.c | grep -v common | while read -r line; do
+	test_name=$(echo $line | sed s'/\.c//g')
+	# FIXME: assumes binaries get spit out in build/bin/
+	packet_file=$(build/bin/$test_name || exit 1)
+	echo $?
+	rm $packet_file
+	echo "ran $test_name"
 done

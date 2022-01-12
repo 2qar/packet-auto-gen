@@ -1,22 +1,35 @@
-include ../config.mk
+include config.mk
 
 CC=gcc
-CPPFLAGS=-I`pwd` -I$(CHOWDER_DIR)
+CPPFLAGS=-I. -I../include -I$(build_dir) $(addprefix -I$(chowder_dir)/,libs/nbt/include libs/list/include src)
 CFLAGS=-g -Wall -Werror -Wextra -pedantic
+LDFLAGS=`pkg-config --libs openssl`
 
-OBJDIR=bin
-CHOWDER_OBJECTS=conn.o packet.o nbt.o player.o
-CHOWDER_INCLUDE_OBJECTS=linked_list.o
-OBJECTS=common.o
-ALL_OBJECTS=$(OBJECTS) $(CHOWDER_OBJECTS) $(CHOWDER_INCLUDE_OBJECTS)
+chowder_src_dirs=libs/nbt libs/list src
+vpath %.c $(addprefix $(chowder_dir)/,$(chowder_src_dirs))
 
-deps: $(addprefix $(OBJDIR)/,$(ALL_OBJECTS))
+build_dir=build
+bin_dir=$(build_dir)/bin
+pc=../pc
+objects:=common.o conn.o packet.o nbt.o player.o list.o
+objects:=$(addprefix $(build_dir)/,$(objects))
+test_names=$(basename $(filter-out common.c,$(wildcard *.c)))
+tests=$(addprefix $(bin_dir)/,$(test_names))
 
-$(addprefix $(OBJDIR)/,$(OBJECTS)): $(OBJDIR)/%.o: %.c
-	$(CC) $(CPPFLAGS) -c $(CFLAGS) $< -o $@
+.PHONY=clean tests
+tests: $(tests)
 
-$(addprefix $(OBJDIR)/,$(CHOWDER_OBJECTS)): $(OBJDIR)/%.o: $(CHOWDER_DIR)/%.c
-	$(CC) -c $(CFLAGS) $< -o $@
+$(tests): $(bin_dir)/%: $(objects) %.c | $(bin_dir) $(pc)
+	$(pc) -o $(build_dir) ../examples/$*.packet
+	$(CC) -DPACKET_FILE_PATH="\"/tmp/$*.bin\"" $(CPPFLAGS) $(CFLAGS) -o $@ $^ $(build_dir)/$*.c $(LDFLAGS)
 
-$(addprefix $(OBJDIR)/,$(CHOWDER_INCLUDE_OBJECTS)): $(OBJDIR)/%.o: $(CHOWDER_DIR)/include/%.c
-	$(CC) -c $(CFLAGS) $< -o $@
+$(build_dir)/%.o: %.c | $(build_dir)
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $^
+
+$(build_dir): ; @mkdir -p $(build_dir)
+$(bin_dir): ; @mkdir -p $(bin_dir)
+
+$(pc): ; @cd WORKING_DIR=`pwd` cd ../ && make && cd $$WORKING_DIR
+
+clean:
+	rm -rf $(build_dir)
