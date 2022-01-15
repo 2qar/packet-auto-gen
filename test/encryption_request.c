@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -39,9 +40,11 @@ int main()
 		fprintf(stderr, "failed to read header?\n");
 		return 1;
 	}
-	struct encryption_request read_e = {0};
+	struct encryption_request *read_e = NULL;
 	r = protocol_read_encryption_request(t.conn->packet, &read_e);
-	if (!packet_equal(&e, &read_e)) {
+	bool equal = packet_equal(&e, read_e);
+	free(read_e);
+	if (!equal) {
 		fprintf(stderr, "read encryption_request differs from actual encryption_request\n");
 		return 1;
 	}

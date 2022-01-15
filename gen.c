@@ -29,6 +29,7 @@ void put_includes()
 		"#include <string.h>\n"
 		"#include <stdint.h>\n"
 		"#include <stdio.h>\n"
+		"#include <stdlib.h>\n"
 		"#include \"protocol_types.h\"\n"
 		"#include \"conn.h\"\n"
 		"#include \"packet.h\""
@@ -238,17 +239,34 @@ void generate_structs(char *name, struct field *fields)
 	generate_struct(name, fields);
 }
 
-static void put_function_signature(char *packet_name, char *read_write)
+enum signature_type {
+	READ_SIGNATURE,
+	WRITE_SIGNATURE,
+};
+
+static void put_function_signature(char *packet_name, enum signature_type type)
 {
-	printf("struct protocol_err protocol_%s_%s(struct packet *p, struct %s *pack)",
-			read_write, packet_name, packet_name);
+	char *read_write;
+	char *data_name;
+	switch (type) {
+		case READ_SIGNATURE:
+			read_write = "read";
+			data_name = "**packptr";
+			break;
+		case WRITE_SIGNATURE:
+			read_write = "write";
+			data_name = "*pack";
+			break;
+	}
+	printf("struct protocol_err protocol_%s_%s(struct packet *p, struct %s %s)",
+			read_write, packet_name, packet_name, data_name);
 }
 
 void put_function_signatures(char *packet_name)
 {
-	put_function_signature(packet_name, "write");
+	put_function_signature(packet_name, WRITE_SIGNATURE);
 	printf(";\n");
-	put_function_signature(packet_name, "read");
+	put_function_signature(packet_name, READ_SIGNATURE);
 	printf(";\n");
 }
 
@@ -596,7 +614,7 @@ static void write_fields(char *packet_name, const char *packet_var, struct field
 
 static void generate_write_function(int id, char *name, struct field *f)
 {
-	put_function_signature(name, "write");
+	put_function_signature(name, WRITE_SIGNATURE);
 	printf(" {\n");
 	printf("\tmake_packet(p, 0x%x);\n", id);
 	printf("\tstruct protocol_err err = {0};\n");
@@ -840,11 +858,14 @@ static void read_fields(char *packet_name, const char *packet_var, struct field 
 
 static void generate_read_function(int id, char *packet_name, struct field *root)
 {
-	put_function_signature(packet_name, "read");
+	put_function_signature(packet_name, READ_SIGNATURE);
 	printf(" {\n");
 	printf("\tassert(p->packet_mode == PACKET_MODE_READ);\n");
 	printf("\tassert(p->packet_id == 0x%x);\n", id);
 	printf("\tstruct protocol_err err = {0};\n");
+	printf("\tif (*packptr == NULL)\n");
+	printf("\t\t*packptr = malloc(sizeof(struct %s));\n", packet_name);
+	printf("\tstruct %s *pack = *packptr;\n", packet_name);
 	printf("\tint n;\n");
 	read_fields(packet_name, "p", root, 1);
 	printf("\treturn err;\n");

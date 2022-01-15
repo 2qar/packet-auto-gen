@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -48,9 +49,11 @@ int main()
 		fprintf(stderr, "failed to read header?\n");
 		return 1;
 	}
-	struct set_slot read_s = {0};
+	struct set_slot *read_s = NULL;
 	r = protocol_read_set_slot(t.conn->packet, &read_s);
-	if (!packet_equal(&s, &read_s)) {
+	bool equal = packet_equal(&s, read_s);
+	free(read_s);
+	if (!equal) {
 		fprintf(stderr, "read set_slot differs from actual set_slot\n");
 		return 1;
 	}

@@ -1,5 +1,5 @@
-#include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "common.h"
@@ -109,9 +109,11 @@ int main()
 		fprintf(stderr, "failed to read header?\n");
 		return 1;
 	}
-	struct chunk_data read_chunk = {0};
+	struct chunk_data *read_chunk = NULL;
 	r = protocol_read_chunk_data(t.conn->packet, &read_chunk);
-	if (!chunk_equal(&chunk, &read_chunk)) {
+	bool equal = chunk_equal(&chunk, read_chunk);
+	free(read_chunk);
+	if (!equal) {
 		fprintf(stderr, "read chunk differs from provided chunk\n");
 		return 1;
 	}

@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -58,9 +59,11 @@ int main()
 		fprintf(stderr, "failed to read header?\n");
 		return 1;
 	}
-	struct window_items read_window_items = {0};
+	struct window_items *read_window_items = NULL;
 	r = protocol_read_window_items(t.conn->packet, &read_window_items);
-	if (!window_items_equal(&window_items, &read_window_items)) {
+	bool equal = window_items_equal(&window_items, read_window_items);
+	free(read_window_items);
+	if (!equal) {
 		fprintf(stderr, "read window items differs from actual window items\n");
 		return 1;
 	}
