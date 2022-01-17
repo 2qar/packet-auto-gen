@@ -1,5 +1,5 @@
 CC=gcc
-CPPFLAGS=-Iinclude
+CPPFLAGS=-Iinclude -I.
 CFLAGS=-g -Wall -Werror -Wextra -pedantic
 TARGET=pc
 
