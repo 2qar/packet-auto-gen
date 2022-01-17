@@ -2,6 +2,7 @@
 #define CHOWDER_PROTOCOL_TYPES_H
 
 #include <stddef.h>
+#include "packet.h"
 
 enum protocol_err_type {
 	PROTOCOL_ERR_SUCCESS,
@@ -38,5 +39,8 @@ struct protocol_err {
 		} input_err;
 	};
 };
+
+typedef struct protocol_err (*protocol_write_func)(struct packet *, void *data);
+typedef struct protocol_err (*protocol_read_func)(struct packet *, void **dataptr);
 
 #endif // CHOWDER_PROTOCOL_TYPES_H
