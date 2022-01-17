@@ -1,6 +1,8 @@
 #ifndef CHOWDER_PROTOCOL_TYPES_H
 #define CHOWDER_PROTOCOL_TYPES_H
 
+#include <stddef.h>
+
 enum protocol_err_type {
 	PROTOCOL_ERR_SUCCESS,
 	PROTOCOL_ERR_PACKET,
