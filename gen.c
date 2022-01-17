@@ -7,18 +7,9 @@
 #include "parser.h"
 #include "protocol_types.h"
 
-void put_id(const char *packet_filename, int id)
+void put_id(const char *packet_name, int id)
 {
-	printf("#define PROTOCOL_ID_");
-	char c = *packet_filename;
-	while (c != '\0') {
-			c = toupper(c);
-		putchar(c);
-
-		++packet_filename;
-		c = *packet_filename;
-	}
-	printf(" 0x%x\n", id);
+	printf("#define PROTOCOL_ID_%s 0x%02x\n", packet_name, id);
 }
 
 void put_includes()
