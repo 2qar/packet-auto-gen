@@ -341,7 +341,7 @@ static void put_bitcount(struct field *f, size_t indent)
 	//        not actually the biggest integer type? who woulda thunk
 	//        'size_t' is related to size xd
 	put_indented(indent, "size_t i_%s = 0;\n", len_name);
-	put_indented(indent, "while (i_%s < sizeof(size_t) && %s_bits != 0) {\n", len_name, len_name);
+	put_indented(indent, "while (i_%s < sizeof(size_t)*8 && %s_bits != 0) {\n", len_name, len_name);
 	put_indented(indent + 1, "%s_len += %s_bits & 1;\n", f->name, len_name);
 	put_indented(indent + 1, "%s_bits >>= 1;\n", len_name);
 	put_indented(indent + 1, "++i_%s;\n", len_name);
