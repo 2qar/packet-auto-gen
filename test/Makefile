@@ -1,17 +1,17 @@
 include config.mk
 
 CC=gcc
-CPPFLAGS=-I. -I../include -I$(build_dir) $(addprefix -I$(chowder_dir)/,libs/nbt/include libs/list/include src)
+CPPFLAGS=-I. -I../include -I$(build_dir) $(addprefix -I$(chowder_dir)/,libs/nbt/include libs/list/include libs/mc/include src)
 CFLAGS=-g -Wall -Werror -Wextra -pedantic
 LDFLAGS=`pkg-config --libs openssl`
 
-chowder_src_dirs=libs/nbt libs/list src
+chowder_src_dirs=libs/nbt libs/list src libs/mc
 vpath %.c $(addprefix $(chowder_dir)/,$(chowder_src_dirs))
 
 build_dir=build
 bin_dir=$(build_dir)/bin
 pc=../pc
-objects:=common.o conn.o packet.o nbt.o player.o list.o
+objects:=common.o conn.o packet.o nbt.o player.o list.o mc.o message.o
 objects:=$(addprefix $(build_dir)/,$(objects))
 test_names=$(basename $(filter-out common.c,$(wildcard *.c)))
 tests=$(addprefix $(bin_dir)/,$(test_names))
